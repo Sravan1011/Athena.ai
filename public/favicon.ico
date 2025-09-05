@@ -1,0 +1,12 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Clean, high-contrast logo design -->
+  <rect width="64" height="64" rx="12" fill="#1f2937"/>
+  
+  <!-- Letter C for ClaimAI -->
+  <path d="M32 12 C42 12 50 20 50 30 C50 40 42 48 32 48 C26 48 21 45 18 40 L22 36 C24 39 27.5 41 32 41 C38 41 43 36 43 30 C43 24 38 19 32 19 C27.5 19 24 21 22 24 L18 20 C21 15 26 12 32 12 Z" fill="white"/>
+  
+  <!-- AI indicator dots -->
+  <circle cx="45" cy="18" r="2" fill="#3b82f6"/>
+  <circle cx="50" cy="22" r="1.5" fill="#6366f1"/>
+  <circle cx="47" cy="25" r="1" fill="#8b5cf6"/>
+</svg>

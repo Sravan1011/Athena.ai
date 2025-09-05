@@ -5,7 +5,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -284,4 +284,731 @@
 
 .verdict-badge:hover::before {
   left: 100%;
+}
+
+/* Notion-style improvements */
+.font-inter {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Notion-style text hierarchy */
+.notion-h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: rgb(55, 53, 47);
+}
+
+.notion-h2 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: rgb(55, 53, 47);
+}
+
+.notion-h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: rgb(55, 53, 47);
+}
+
+.notion-body {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: rgb(55, 53, 47);
+}
+
+.notion-body-sm {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgb(107, 114, 126);
+}
+
+/* Notion-style cards */
+.notion-card {
+  background: white;
+  border: 1px solid rgb(233, 233, 231);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.notion-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: rgb(217, 217, 214);
+}
+
+/* Notion-style buttons */
+.notion-btn {
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.notion-btn-primary {
+  background: rgb(35, 131, 226);
+  color: white;
+}
+
+.notion-btn-primary:hover {
+  background: rgb(29, 111, 193);
+}
+
+.notion-btn-secondary {
+  background: white;
+  color: rgb(55, 53, 47);
+  border-color: rgb(217, 217, 214);
+}
+
+.notion-btn-secondary:hover {
+  background: rgb(247, 246, 243);
+}
+
+/* Notion-style spacing */
+.notion-spacing-sm { margin-bottom: 0.5rem; }
+.notion-spacing-md { margin-bottom: 1rem; }
+.notion-spacing-lg { margin-bottom: 1.5rem; }
+.notion-spacing-xl { margin-bottom: 2rem; }
+
+/* Notion-style layout containers */
+.notion-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.notion-section {
+  padding: 3rem 0;
+}
+
+/* Notion-style form elements */
+.notion-input {
+  font-size: 1rem;
+  padding: 12px 16px;
+  border: 1px solid rgb(217, 217, 214);
+  border-radius: 6px;
+  background: white;
+  color: rgb(55, 53, 47);
+  transition: all 0.15s ease;
+}
+
+.notion-input:focus {
+  border-color: rgb(35, 131, 226);
+  box-shadow: 0 0 0 3px rgba(35, 131, 226, 0.1);
+  outline: none;
+}
+
+.notion-textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.6;
+  padding: 16px;
+  border: 1px solid rgb(217, 217, 214);
+  border-radius: 8px;
+  background: white;
+  color: rgb(55, 53, 47);
+  resize: vertical;
+  min-height: 120px;
+  transition: all 0.15s ease;
+}
+
+.notion-textarea:focus {
+  border-color: rgb(35, 131, 226);
+  box-shadow: 0 0 0 3px rgba(35, 131, 226, 0.1);
+  outline: none;
+}
+
+/* Notion-style status indicators */
+.notion-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.notion-status-success {
+  background: rgb(226, 243, 228);
+  color: rgb(21, 115, 71);
+}
+
+.notion-status-warning {
+  background: rgb(255, 243, 205);
+  color: rgb(146, 64, 14);
+}
+
+.notion-status-error {
+  background: rgb(253, 226, 226);
+  color: rgb(153, 27, 27);
+}
+
+/* Theme System */
+:root[data-theme="light"] {
+  --theme-background: #ffffff;
+  --theme-foreground: #0f0f0f;
+  --theme-muted: #6b7280;
+  --theme-muted-foreground: #9ca3af;
+  --theme-surface: #f9fafb;
+  --theme-surface-hover: #f3f4f6;
+  --theme-border: #e5e7eb;
+  --theme-accent: #3b82f6;
+  --theme-accent-foreground: #ffffff;
+  --theme-secondary: #f1f5f9;
+  --theme-secondary-foreground: #334155;
+  --theme-input: #ffffff;
+  --theme-input-border: #d1d5db;
+  --theme-card: #ffffff;
+  --theme-sidebar: #f8fafc;
+}
+
+:root[data-theme="dark"] {
+  --theme-background: #0c0c0c;
+  --theme-foreground: #fafafa;
+  --theme-muted: #a1a1aa;
+  --theme-muted-foreground: #71717a;
+  --theme-surface: #171717;
+  --theme-surface-hover: #262626;
+  --theme-border: #404040;
+  --theme-accent: #3b82f6;
+  --theme-accent-foreground: #ffffff;
+  --theme-secondary: #27272a;
+  --theme-secondary-foreground: #a1a1aa;
+  --theme-input: #171717;
+  --theme-input-border: #404040;
+  --theme-card: #171717;
+  --theme-sidebar: #0a0a0a;
+}
+
+:root[data-theme="contrast"] {
+  --theme-background: #000000;
+  --theme-foreground: #ffffff;
+  --theme-muted: #cccccc;
+  --theme-muted-foreground: #999999;
+  --theme-surface: #1a1a1a;
+  --theme-surface-hover: #333333;
+  --theme-border: #666666;
+  --theme-accent: #00ff00;
+  --theme-accent-foreground: #000000;
+  --theme-secondary: #333333;
+  --theme-secondary-foreground: #ffffff;
+  --theme-input: #1a1a1a;
+  --theme-input-border: #666666;
+  --theme-card: #1a1a1a;
+  --theme-sidebar: #000000;
+}
+
+/* Theme utility classes */
+.bg-theme-background { background-color: var(--theme-background); }
+.bg-theme-surface { background-color: var(--theme-surface); }
+.bg-theme-surface-hover { background-color: var(--theme-surface-hover); }
+.bg-theme-card { background-color: var(--theme-card); }
+.bg-theme-accent { background-color: var(--theme-accent); }
+.bg-theme-secondary { background-color: var(--theme-secondary); }
+.bg-theme-sidebar { background-color: var(--theme-sidebar); }
+.bg-theme-input { background-color: var(--theme-input); }
+
+.text-theme-foreground { color: var(--theme-foreground); }
+.text-theme-muted { color: var(--theme-muted); }
+.text-theme-muted-foreground { color: var(--theme-muted-foreground); }
+.text-theme-accent { color: var(--theme-accent); }
+.text-theme-accent-foreground { color: var(--theme-accent-foreground); }
+.text-theme-secondary-foreground { color: var(--theme-secondary-foreground); }
+
+.border-theme-border { border-color: var(--theme-border); }
+.border-theme-input { border-color: var(--theme-input-border); }
+
+/* Professional sidebar animations */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutPeek {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(2px);
+  }
+}
+
+/* Perplexity-style components */
+.perplexity-search {
+  background: var(--theme-input);
+  border: 1px solid var(--theme-input-border);
+  color: var(--theme-foreground);
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.perplexity-search:focus {
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 15%, transparent);
+  outline: none;
+}
+
+.perplexity-chat {
+  background: var(--theme-card);
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+}
+
+.perplexity-sidebar {
+  background: var(--theme-sidebar);
+  border-right: 1px solid var(--theme-border);
+}
+
+.perplexity-message {
+  background: var(--theme-surface);
+  border-radius: 6px;
+  border: 1px solid var(--theme-border);
+  transition: all 0.15s ease;
+}
+
+.perplexity-message:hover {
+  background: var(--theme-surface-hover);
+  border-color: var(--theme-border);
+}
+
+/* Compact scrollbar */
+.perplexity-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.perplexity-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.perplexity-sidebar::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: 2px;
+}
+
+.perplexity-sidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-muted);
+}
+
+/* Notion typography with theme support */
+.notion-h1-themed {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--theme-foreground);
+}
+
+.notion-h2-themed {
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--theme-foreground);
+}
+
+.notion-h3-themed {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--theme-foreground);
+}
+
+.notion-body-themed {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--theme-foreground);
+}
+
+.notion-body-sm-themed {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--theme-muted);
+}
+
+/* Enhanced animations for dynamic landing page */
+@keyframes pulse-gentle {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate(30px, -30px) rotate(120deg);
+  }
+  66% {
+    transform: translate(-20px, 20px) rotate(240deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(360deg);
+  }
+}
+
+@keyframes particle-float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px);
+  }
+  50% {
+    transform: translateY(-10px) translateX(-5px);
+  }
+  75% {
+    transform: translateY(-30px) translateX(15px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes text-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes morphing-blob {
+  0%, 100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+  50% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+  }
+}
+
+@keyframes progress-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes card-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes icon-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Animation utility classes */
+.animate-pulse-gentle {
+  animation: pulse-gentle 3s ease-in-out infinite;
+}
+
+.animate-drift {
+  animation: drift 20s ease-in-out infinite;
+}
+
+.animate-particle-float {
+  animation: particle-float 6s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-text-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  background-size: 200% 100%;
+  animation: text-shimmer 3s infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.animate-morphing-blob {
+  animation: morphing-blob 8s ease-in-out infinite;
+}
+
+.animate-progress-fill {
+  animation: progress-fill 1s ease-out forwards;
+}
+
+.animate-card-entrance {
+  animation: card-entrance 0.6s ease-out forwards;
+}
+
+.animate-icon-bounce {
+  animation: icon-bounce 2s infinite;
+}
+
+/* Interactive hover effects */
+.hover-float:hover {
+  transform: translateY(-8px);
+  transition: transform 0.3s ease;
+}
+
+.hover-glow-blue:hover {
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
+  transition: box-shadow 0.3s ease;
+}
+
+.hover-glow-green:hover {
+  box-shadow: 0 0 30px rgba(34, 197, 94, 0.4);
+  transition: box-shadow 0.3s ease;
+}
+
+.hover-glow-purple:hover {
+  box-shadow: 0 0 30px rgba(147, 51, 234, 0.4);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Parallax and scroll-triggered animations */
+.parallax-element {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.scroll-fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.scroll-fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scroll-slide-left {
+  opacity: 0;
+  transform: translateX(-50px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.scroll-slide-left.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.scroll-slide-right {
+  opacity: 0;
+  transform: translateX(50px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.scroll-slide-right.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Enhanced gradient backgrounds */
+.gradient-mesh {
+  background: 
+    radial-gradient(at 40% 20%, hsla(28,100%,74%,1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189,100%,56%,1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(355,100%,93%,1) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, hsla(340,100%,76%,1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(22,100%,77%,1) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, hsla(242,100%,70%,1) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, hsla(343,100%,76%,1) 0px, transparent 50%);
+}
+
+/* Clean Logo styles - no pixelation */
+.logo-container {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.logo-container:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+}
+
+.logo-image {
+  image-rendering: auto;
+  transition: transform 0.3s ease;
+}
+
+.logo-container:hover .logo-image {
+  transform: scale(1.02);
+}
+
+/* Logo pulse animation for attention */
+@keyframes logo-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.logo-container {
+  animation: logo-pulse 3s ease-in-out infinite;
+}
+
+.logo-container:hover {
+  animation: none;
+}
+
+/* Enhanced Navigation Styles */
+.navbar-blur {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Dropdown animations */
+.dropdown-enter {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+}
+
+.dropdown-enter-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: all 0.2s ease-out;
+}
+
+.dropdown-exit {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.dropdown-exit-active {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+  transition: all 0.15s ease-in;
+}
+
+/* Mobile menu animations */
+.mobile-menu-enter {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-10px);
+}
+
+.mobile-menu-enter-active {
+  opacity: 1;
+  max-height: 500px;
+  transform: translateY(0);
+  transition: all 0.3s ease-out;
+}
+
+.mobile-menu-exit {
+  opacity: 1;
+  max-height: 500px;
+  transform: translateY(0);
+}
+
+.mobile-menu-exit-active {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-10px);
+  transition: all 0.2s ease-in;
+}
+
+/* Enhanced button hover effects */
+.btn-gradient-hover:hover {
+  background-size: 150% 150%;
+  transform: translateY(-1px);
+}
+
+/* Navigation link underline effect */
+.nav-link {
+  position: relative;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+  transition-property: color, background-color, border-color, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
