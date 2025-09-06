@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTheme } from '@/components/theme-provider';
+import { redirect } from "next/navigation";
 
 export default function Home() {
   const { isLoaded, isSignedIn } = useUser();
@@ -20,6 +21,13 @@ export default function Home() {
   const [analysisStep, setAnalysisStep] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [featuresDropdownOpen, setFeaturesDropdownOpen] = useState(false);
+
+  // Redirect signed-in users to dashboard
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      redirect('/dashboard');
+    }
+  }, [isLoaded, isSignedIn]);
   
   const stats = [
     { number: "99.7%", label: "Accuracy Rate" },
@@ -292,7 +300,7 @@ export default function Home() {
                   {isSignedIn ? (
                     <div className="flex items-center space-x-3">
                       <Button asChild variant="outline" size="sm" className="hidden md:flex">
-                        <Link href="/fact-check">Dashboard</Link>
+                        <Link href="/dashboard">Dashboard</Link>
                       </Button>
                       <UserButton afterSignOutUrl="/" />
                     </div>
@@ -371,7 +379,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
               {isSignedIn ? (
                 <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-4 text-lg font-medium group shadow-lg">
-                  <Link href="/fact-check">
+                  <Link href="/dashboard">
                     <Search className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
                     Start fact checking
                   </Link>
@@ -610,7 +618,7 @@ export default function Home() {
             Join thousands of journalists, researchers, and truth-seekers using ClaimAI to verify information instantly.
           </p>
           <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-4 text-lg font-medium shadow-lg">
-            <Link href={isSignedIn ? "/fact-check" : "/sign-up"}>
+            <Link href={isSignedIn ? "/dashboard" : "/sign-up"}>
               Start fact-checking now
             </Link>
           </Button>

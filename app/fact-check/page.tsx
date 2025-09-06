@@ -5,6 +5,7 @@ import { useUser, SignOutButton } from "@clerk/nextjs"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { useSearchParams } from "next/navigation"
 import {
   Loader2,
   ExternalLink,
@@ -87,6 +88,7 @@ interface ChatMessage {
 
 export default function FactCheckPage() {
   const { user, isSignedIn } = useUser()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<FactCheckResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -96,6 +98,7 @@ export default function FactCheckPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null)
   const [loadingConversations, setLoadingConversations] = useState(false)
+  const [autoFactCheck, setAutoFactCheck] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
@@ -106,9 +109,151 @@ export default function FactCheckPage() {
       }
     : null
 
-  useForm<FactCheckForm>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<FactCheckForm>({
     resolver: zodResolver(factCheckSchema),
   })
+
+  // Handle URL parameters for pre-filled claims
+  useEffect(() => {
+    const claimParam = searchParams.get('claim')
+    if (claimParam) {
+      const decodedClaim = decodeURIComponent(claimParam)
+      setValue('claim', decodedClaim)
+      setCurrentInput(decodedClaim)
+      setAutoFactCheck(true)
+    }
+  }, [searchParams, setValue])
+
+  // Handle fact-check function for auto-fact-check
+  const handleFactCheck = useCallback(async (data: { claim: string }) => {
+    if (!isSignedIn) {
+      setError("Please sign in to use the fact checker")
+      return
+    }
+
+    const claim = data.claim.trim()
+    if (!claim) return
+
+    setIsLoading(true)
+    setError(null)
+    setResult(null)
+
+    try {
+      let conversationId = currentConversationId
+      
+      // Create new conversation if none exists
+      if (!conversationId) {
+        conversationId = await createNewConversation(`Fact-check: ${claim.substring(0, 50)}...`)
+        if (!conversationId) {
+          throw new Error('Failed to create conversation')
+        }
+      }
+
+      // Add user message to chat and save to DB
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'user',
+        content: claim,
+        timestamp: new Date()
+      }
+
+      setChatHistory(prev => [...prev, userMessage])
+      await saveMessage(conversationId, 'user', claim)
+
+      // Try enhanced fact-check first
+      const enhancedResponse = await fetch("/api/enhanced-fact-check", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ claim }),
+      })
+
+      if (enhancedResponse.ok) {
+        const enhancedData = await enhancedResponse.json()
+        
+        const factCheckResult: FactCheckResult = {
+          verdict: enhancedData.verdict,
+          explanation: enhancedData.explanation,
+          confidence: enhancedData.confidence,
+          evidence: enhancedData.evidence,
+          reasoning: enhancedData.reasoning,
+          sources: enhancedData.sources,
+          processingTimeMs: enhancedData.processingTimeMs,
+          claim: { text: claim },
+          contextualInfo: enhancedData.contextualInfo
+        }
+
+        setResult(factCheckResult)
+
+        // Add assistant message with fact-check result
+        const assistantMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: `I've analyzed the claim: "${claim}"\n\n**Verdict:** ${factCheckResult.verdict}\n**Confidence:** ${Math.round((factCheckResult.confidence || 0) * 100)}%\n\n${factCheckResult.explanation}`,
+          result: factCheckResult,
+          timestamp: new Date()
+        }
+
+        setChatHistory(prev => [...prev, assistantMessage])
+        await saveMessage(conversationId, 'assistant', assistantMessage.content, {
+          fact_check_result: factCheckResult,
+          confidence_score: factCheckResult.confidence
+        })
+        return
+      }
+
+      // Fallback to original fact-check API
+      const response = await fetch("/api/fact-check", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ claim }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to fact check. Please try again.")
+      }
+
+      const resultData: FactCheckResult = await response.json()
+
+      if (!resultData.verdict || !resultData.explanation || !resultData.claim?.text) {
+        throw new Error("Invalid response format from the server")
+      }
+
+      setResult(resultData)
+
+      // Add assistant message with fact-check result
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: `I've analyzed the claim: "${claim}"\n\n**Verdict:** ${resultData.verdict}\n**Confidence:** ${Math.round((resultData.confidence || 0) * 100)}%\n\n${resultData.explanation}`,
+        result: resultData,
+        timestamp: new Date()
+      }
+
+      setChatHistory(prev => [...prev, assistantMessage])
+      await saveMessage(conversationId, 'assistant', assistantMessage.content, {
+        fact_check_result: resultData,
+        confidence_score: resultData.confidence
+      })
+    } catch (err) {
+      console.error("Fact check error:", err)
+      setError(err instanceof Error ? err.message : "An error occurred while fact-checking")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [isSignedIn, currentConversationId])
+
+  // Auto-fact-check when claim is pre-filled from URL
+  useEffect(() => {
+    if (autoFactCheck && currentInput && !isLoading) {
+      setAutoFactCheck(false)
+      handleFactCheck({ claim: currentInput })
+    }
+  }, [autoFactCheck, currentInput, isLoading, handleFactCheck])
 
   // Load user's conversations
   const loadConversations = useCallback(async () => {
@@ -383,7 +528,7 @@ export default function FactCheckPage() {
 
   if (!isSignedIn) {
     return (
-      <div className="min-h-screen bg-theme-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full shadow-sm">
           <CardHeader className="text-center">
             <Sparkles className="h-12 w-12 text-blue-600 mx-auto mb-4" />
@@ -411,7 +556,7 @@ export default function FactCheckPage() {
   }
 
   return (
-    <div className="min-h-screen bg-theme-background flex">
+    <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <div className={`perplexity-sidebar transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'w-12' : 'w-64'} flex-shrink-0 overflow-visible relative group`}>
         {/* Pull-out indicator when collapsed */}
@@ -428,7 +573,7 @@ export default function FactCheckPage() {
             <div className="absolute -right-3 top-1/2 transform -translate-y-1/2 z-10">
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="bg-theme-accent text-theme-accent-foreground hover:bg-theme-accent/90 w-6 h-16 rounded-r-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center group animate-pulse hover:animate-none hover:scale-105"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 w-6 h-16 rounded-r-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center group animate-pulse hover:animate-none hover:scale-105"
                 title="Expand sidebar"
               >
                 <div className="flex flex-col items-center space-y-1">
@@ -447,21 +592,21 @@ export default function FactCheckPage() {
         
         <div className="h-full flex flex-col">
           {/* Sidebar Header */}
-          <div className="p-3 border-b border-theme-border">
+          <div className="p-3 border-b border-border">
             <div className="flex items-center justify-between">
               <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer">
                 <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-md flex items-center justify-center">
                   <span className="text-white text-xs font-bold">C</span>
                 </div>
                 <div className={`overflow-hidden transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                  <span className="text-sm font-semibold text-theme-foreground whitespace-nowrap">ClaimAI</span>
+                  <span className="text-sm font-semibold text-foreground whitespace-nowrap">ClaimAI</span>
                 </div>
               </Link>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="text-theme-muted hover:text-theme-foreground h-6 w-6 p-0"
+                className="text-muted-foreground hover:text-foreground h-6 w-6 p-0"
               >
                 <div className="transition-transform duration-300 ease-in-out">
                   {sidebarCollapsed ? <Plus className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
@@ -474,7 +619,7 @@ export default function FactCheckPage() {
           <div className={`transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'h-0 opacity-0 p-0' : 'h-auto opacity-100 p-3'} overflow-hidden`}>
             <Button
               onClick={startNewChat}
-              className="w-full bg-theme-accent text-theme-accent-foreground hover:opacity-90 flex items-center justify-center gap-1.5 h-8 text-xs rounded-md transition-all duration-200"
+              className="w-full bg-primary text-primary-foreground hover:opacity-90 flex items-center justify-center gap-1.5 h-8 text-xs rounded-md transition-all duration-200"
             >
               <Plus className="h-3 w-3" />
               New
@@ -486,14 +631,14 @@ export default function FactCheckPage() {
             <div className={`transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'opacity-0 transform -translate-x-4' : 'opacity-100 transform translate-x-0'} overflow-hidden`}>
               {conversations.length > 0 && (
                 <div className="space-y-0.5">
-                  <div className="px-2 py-1 text-theme-muted">
+                  <div className="px-2 py-1 text-muted-foreground">
                     <span className="text-xs font-medium">Recent</span>
                   </div>
                   {conversations.slice(0, 10).map((conversation, index) => (
                     <div
                       key={conversation.id}
-                      className={`group relative rounded-md hover:bg-theme-surface-hover transition-all duration-200 ${
-                        currentConversationId === conversation.id ? 'bg-theme-surface border border-theme-border' : ''
+                      className={`group relative rounded-md hover:bg-muted/50 transition-all duration-200 ${
+                        currentConversationId === conversation.id ? 'bg-muted border border-border' : ''
                       }`}
                       style={{ 
                         animation: !sidebarCollapsed ? `slideInLeft 0.3s ease-out forwards ${index * 50}ms` : 'none'
@@ -503,8 +648,8 @@ export default function FactCheckPage() {
                         onClick={() => loadConversation(conversation.id)}
                         className="w-full text-left px-2 py-1.5 cursor-pointer"
                       >
-                        <p className="text-xs text-theme-foreground truncate pr-6">{conversation.title}</p>
-                        <p className="text-xs text-theme-muted">
+                        <p className="text-xs text-foreground truncate pr-6">{conversation.title}</p>
+                        <p className="text-xs text-muted-foreground">
                           {new Date(conversation.updated_at).toLocaleDateString()}
                         </p>
                       </button>
@@ -526,30 +671,30 @@ export default function FactCheckPage() {
               )}
               {loadingConversations && (
                 <div className="px-2 py-4 text-center">
-                  <div className="text-xs text-theme-muted">Loading conversations...</div>
+                  <div className="text-xs text-muted-foreground">Loading conversations...</div>
                 </div>
               )}
             </div>
           </div>
 
           {/* Sidebar Footer */}
-          <div className={`transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'h-0 opacity-0 p-0' : 'h-auto opacity-100 p-3'} overflow-hidden border-t border-theme-border space-y-3`}>
+          <div className={`transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'h-0 opacity-0 p-0' : 'h-auto opacity-100 p-3'} overflow-hidden border-t border-border space-y-3`}>
             <div className={`transition-all duration-600 ease-in-out delay-100 ${sidebarCollapsed ? 'transform translate-y-4 opacity-0' : 'transform translate-y-0 opacity-100'}`}>
               <ThemeSwitcher />
             </div>
             <div className={`transition-all duration-600 ease-in-out delay-200 ${sidebarCollapsed ? 'transform translate-y-4 opacity-0' : 'transform translate-y-0 opacity-100'} flex items-center justify-between`}>
               <div className="flex items-center space-x-2 min-w-0 flex-1">
-                <div className="w-5 h-5 bg-theme-muted rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-medium text-theme-background">
+                <div className="w-5 h-5 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-medium text-background">
                     {(safeUser?.firstName || safeUser?.email || 'U').charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <span className="text-xs text-theme-foreground truncate">
+                <span className="text-xs text-foreground truncate">
                   {safeUser?.firstName || safeUser?.email}
                 </span>
               </div>
               <SignOutButton>
-                <Button variant="ghost" size="sm" className="text-theme-muted hover:text-theme-foreground h-6 w-6 p-0 flex-shrink-0 transition-all duration-200 hover:scale-110">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-6 w-6 p-0 flex-shrink-0 transition-all duration-200 hover:scale-110">
                   <Settings className="h-3 w-3" />
                 </Button>
               </SignOutButton>
@@ -561,7 +706,7 @@ export default function FactCheckPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen">
         {/* Header with Logo */}
-        <header className="bg-theme-background border-b border-theme-border px-6 py-4 flex-shrink-0">
+        <header className="bg-background border-b border-border px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 flex items-center justify-center bg-white rounded-xl shadow-lg border-2 border-gray-200 logo-container">
@@ -575,8 +720,8 @@ export default function FactCheckPage() {
                 />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-theme-foreground tracking-tight">ClaimAI</h1>
-                <p className="text-sm text-theme-muted">AI-Powered Fact Checking</p>
+                <h1 className="text-xl font-bold text-foreground tracking-tight">ClaimAI</h1>
+                <p className="text-sm text-muted-foreground">AI-Powered Fact Checking</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
@@ -595,15 +740,21 @@ export default function FactCheckPage() {
           {/* Empty State */}
           {chatHistory.length === 0 && !isLoading && (
             <div className="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center px-4">
-              <div className="w-12 h-12 bg-theme-accent rounded-lg flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-theme-accent-foreground" />
+              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
+                <Shield className="h-6 w-6 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-bold text-theme-foreground mb-3">
+              <h1 className="text-2xl font-bold text-foreground mb-3">
                 Fact Check Any Claim
               </h1>
-              <p className="text-theme-muted max-w-md text-sm leading-relaxed">
+              <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
                 Ask questions, verify claims, or analyze statements. I&apos;ll help you separate fact from fiction using AI-powered analysis.
               </p>
+              {autoFactCheck && (
+                <div className="flex items-center space-x-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Auto-processing claim from RSS feed...</span>
+                </div>
+              )}
               
               {/* Quick Examples */}
               <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-2 w-full max-w-lg">
@@ -616,9 +767,9 @@ export default function FactCheckPage() {
                   <button
                     key={index}
                     onClick={() => setCurrentInput(example)}
-                    className="perplexity-message p-3 text-left hover:bg-theme-surface-hover transition-colors text-xs"
+                    className="perplexity-message p-3 text-left hover:bg-muted-hover transition-colors text-xs"
                   >
-                    <p className="text-theme-foreground leading-relaxed">{example}</p>
+                    <p className="text-foreground leading-relaxed">{example}</p>
                   </button>
                 ))}
               </div>
@@ -632,12 +783,15 @@ export default function FactCheckPage() {
                 {/* User Message */}
                 {message.type === 'user' && (
                   <div className="flex items-start space-x-3">
-                    <div className="w-6 h-6 bg-theme-accent rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-theme-accent-foreground text-xs font-medium">U</span>
+                    <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-primary-foreground text-xs font-medium">U</span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-theme-foreground text-sm leading-relaxed">{message.content}</p>
-                      <p className="text-theme-muted text-xs mt-1">{message.timestamp.toLocaleTimeString()}</p>
+                      <div 
+                        className="text-foreground text-sm leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
+                      />
+                      <p className="text-muted-foreground text-xs mt-1">{message.timestamp.toLocaleTimeString()}</p>
                     </div>
                   </div>
                 )}
@@ -649,13 +803,16 @@ export default function FactCheckPage() {
                       <Shield className="h-3 w-3 text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-theme-foreground text-sm mb-2">{message.content}</p>
+                      <div 
+                        className="text-foreground text-sm mb-2"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
+                      />
                       {message.result && (
                         <div className="perplexity-chat p-4 mt-3">
                           <FactCheckResult result={message.result} />
                         </div>
                       )}
-                      <p className="text-theme-muted text-xs mt-2">{message.timestamp.toLocaleTimeString()}</p>
+                      <p className="text-muted-foreground text-xs mt-2">{message.timestamp.toLocaleTimeString()}</p>
                     </div>
                   </div>
                 )}
@@ -671,12 +828,12 @@ export default function FactCheckPage() {
                 <div className="flex-1">
                   <div className="perplexity-message p-3">
                     <div className="flex items-center space-x-2">
-                      <Loader2 className="h-3 w-3 animate-spin text-theme-accent" />
-                      <span className="text-theme-foreground text-sm">Analyzing claim...</span>
+                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                      <span className="text-foreground text-sm">Analyzing claim...</span>
                     </div>
                     <div className="mt-2 space-y-1">
-                      <div className="h-1.5 bg-theme-surface rounded animate-pulse"></div>
-                      <div className="h-1.5 bg-theme-surface rounded animate-pulse w-3/4"></div>
+                      <div className="h-1.5 bg-muted rounded animate-pulse"></div>
+                      <div className="h-1.5 bg-muted rounded animate-pulse w-3/4"></div>
                     </div>
                   </div>
                 </div>
@@ -688,7 +845,7 @@ export default function FactCheckPage() {
         </div>
 
         {/* Search Input */}
-        <div className="p-4 border-t border-theme-border bg-theme-background">
+        <div className="p-4 border-t border-border bg-background">
           <div className="max-w-2xl mx-auto">
             <form onSubmit={(e) => e.preventDefault()} className="relative">
               <div className="relative flex items-end">
@@ -705,18 +862,18 @@ export default function FactCheckPage() {
                     }
                   }}
                   placeholder="Ask anything or fact-check a claim..."
-                  className="perplexity-search w-full px-4 py-3 pr-20 resize-none text-sm placeholder:text-theme-muted-foreground focus:outline-none min-h-[44px] max-h-32"
+                  className="perplexity-search w-full px-4 py-3 pr-20 resize-none text-sm placeholder:text-muted-foreground-foreground focus:outline-none min-h-[44px] max-h-32"
                   disabled={isLoading}
                   rows={1}
                 />
                 <div className="absolute right-2 bottom-2 flex items-center space-x-1">
                   <button
                     type="button"
-                    className="h-7 w-7 p-0 bg-theme-surface hover:bg-theme-surface-hover rounded-md border border-theme-border flex items-center justify-center transition-colors"
+                    className="h-7 w-7 p-0 bg-muted hover:bg-muted-hover rounded-md border border-border flex items-center justify-center transition-colors"
                     disabled={isLoading}
                     title="Keyboard shortcut: Cmd+Enter"
                   >
-                    <span className="text-xs text-theme-muted font-mono">⌘</span>
+                    <span className="text-xs text-muted-foreground font-mono">⌘</span>
                   </button>
                   <button
                     type="button"
@@ -726,7 +883,7 @@ export default function FactCheckPage() {
                       }
                     }}
                     disabled={isLoading || !currentInput.trim()}
-                    className="bg-theme-accent text-theme-accent-foreground hover:opacity-90 disabled:opacity-50 h-7 w-7 p-0 rounded-md flex items-center justify-center transition-all"
+                    className="bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 h-7 w-7 p-0 rounded-md flex items-center justify-center transition-all"
                   >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -748,6 +905,17 @@ export default function FactCheckPage() {
       </div>
     </div>
   )
+}
+
+// Simple markdown renderer for basic formatting
+function renderMarkdown(text: string) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>')
+    .replace(/^/, '<p>')
+    .replace(/$/, '</p>');
 }
 
 // Separate component for fact-check results
@@ -814,14 +982,14 @@ function FactCheckResult({ result }: { result: FactCheckResult }) {
                   style={{ width: `${result.confidence * 100}%` }}
                 />
               </div>
-              <span className="text-theme-muted text-xs font-medium">
+              <span className="text-muted-foreground text-xs font-medium">
                 {formatConfidence(result.confidence)}
               </span>
             </div>
           )}
         </div>
         {result.processingTimeMs && (
-          <div className="flex items-center space-x-1 text-theme-muted text-xs">
+          <div className="flex items-center space-x-1 text-muted-foreground text-xs">
             <Clock className="w-3 h-3" />
             <span>{formatProcessingTime(result.processingTimeMs)}</span>
           </div>
@@ -831,10 +999,10 @@ function FactCheckResult({ result }: { result: FactCheckResult }) {
       {/* Explanation */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-theme-foreground">Analysis</h3>
+          <h3 className="text-sm font-semibold text-foreground">Analysis</h3>
           {result.evidence?.evidenceQuality && (
             <div className="flex items-center space-x-1">
-              <span className="text-xs text-theme-muted">Evidence Quality:</span>
+              <span className="text-xs text-muted-foreground">Evidence Quality:</span>
               <span className={cn(
                 "px-2 py-1 rounded-full text-xs font-medium",
                 result.evidence.evidenceQuality === 'high' ? "bg-green-100 text-green-700" :
@@ -846,12 +1014,12 @@ function FactCheckResult({ result }: { result: FactCheckResult }) {
             </div>
           )}
         </div>
-        <p className="text-sm text-theme-foreground leading-relaxed">{result.explanation}</p>
+        <p className="text-sm text-foreground leading-relaxed">{result.explanation}</p>
       </div>
 
       {/* Expandable Sections */}
       {result.sources && result.sources.length > 0 && (
-        <div className="border-t border-theme-border pt-4">
+        <div className="border-t border-border pt-4">
           <button
             onClick={() => toggleSection('sources')}
             className="flex items-center justify-between w-full text-left"
@@ -863,7 +1031,7 @@ function FactCheckResult({ result }: { result: FactCheckResult }) {
           {expandedSections.sources && (
             <div className="mt-4 space-y-3">
               {result.sources.slice(0, 8).map((source, index) => (
-                <div key={index} className="p-4 bg-theme-surface rounded-lg border border-theme-border hover:shadow-sm transition-shadow">
+                <div key={index} className="p-4 bg-muted rounded-lg border border-border hover:shadow-sm transition-shadow">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-2 flex-1">
                       {getSourceTypeIcon(source.sourceType)}
@@ -882,14 +1050,14 @@ function FactCheckResult({ result }: { result: FactCheckResult }) {
                             style={{ width: `${source.credibilityScore}%` }}
                           />
                         </div>
-                        <span className="text-xs font-medium text-theme-muted">
+                        <span className="text-xs font-medium text-muted-foreground">
                           {source.credibilityScore}%
                         </span>
                       </div>
                     </div>
                   </div>
                   
-                  <p className="notion-body-sm-themed text-theme-muted mb-3 leading-relaxed">{source.excerpt}</p>
+                  <p className="notion-body-sm-themed text-muted-foreground mb-3 leading-relaxed">{source.excerpt}</p>
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -897,13 +1065,13 @@ function FactCheckResult({ result }: { result: FactCheckResult }) {
                         href={source.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-theme-accent hover:underline notion-body-sm-themed flex items-center"
+                        className="text-primary hover:underline notion-body-sm-themed flex items-center"
                       >
                         {source.domain}
                         <ExternalLink className="w-3 h-3 ml-1" />
                       </a>
                       {source.publishDate && (
-                        <span className="text-xs text-theme-muted">
+                        <span className="text-xs text-muted-foreground">
                           {new Date(source.publishDate).toLocaleDateString()}
                         </span>
                       )}

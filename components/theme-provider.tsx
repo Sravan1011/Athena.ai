@@ -27,11 +27,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('claimai-theme', theme);
     document.documentElement.setAttribute('data-theme', theme);
     
-    // Apply theme class to body
-    document.body.className = document.body.className
-      .replace(/theme-\w+/g, '')
-      .concat(` theme-${theme}`)
-      .trim();
+    // Apply theme class to html element for Tailwind dark mode
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    
+    // For contrast theme, we rely on the data-theme attribute and CSS variables
+    // The CSS will handle the contrast theme via :root[data-theme="contrast"]
   }, [theme]);
 
   return (

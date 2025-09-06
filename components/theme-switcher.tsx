@@ -14,7 +14,7 @@ export function ThemeSwitcher() {
   ] as const;
 
   return (
-    <div className="flex items-center bg-theme-surface rounded-lg p-1 border border-theme-border w-full justify-center">
+    <div className="flex items-center bg-muted rounded-lg p-1 border border-border w-full justify-center">
       {themes.map(({ value, label, icon: Icon }) => (
         <Button
           key={value}
@@ -23,8 +23,8 @@ export function ThemeSwitcher() {
           onClick={() => setTheme(value)}
           className={`flex-1 px-2 py-1.5 rounded-md transition-all h-7 flex items-center justify-center ${
             theme === value
-              ? 'bg-theme-accent text-theme-accent-foreground shadow-sm'
-              : 'text-theme-muted hover:text-theme-foreground hover:bg-theme-surface-hover'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
           }`}
         >
           <Icon className="w-3.5 h-3.5" />

@@ -451,80 +451,71 @@
   color: rgb(153, 27, 27);
 }
 
-/* Theme System */
+/* Theme System - Map custom theme variables to Tailwind CSS variables */
 :root[data-theme="light"] {
-  --theme-background: #ffffff;
-  --theme-foreground: #0f0f0f;
-  --theme-muted: #6b7280;
-  --theme-muted-foreground: #9ca3af;
-  --theme-surface: #f9fafb;
-  --theme-surface-hover: #f3f4f6;
-  --theme-border: #e5e7eb;
-  --theme-accent: #3b82f6;
-  --theme-accent-foreground: #ffffff;
-  --theme-secondary: #f1f5f9;
-  --theme-secondary-foreground: #334155;
-  --theme-input: #ffffff;
-  --theme-input-border: #d1d5db;
-  --theme-card: #ffffff;
-  --theme-sidebar: #f8fafc;
+  --background: #ffffff;
+  --foreground: #0f0f0f;
+  --muted: #f9fafb;
+  --muted-foreground: #6b7280;
+  --card: #ffffff;
+  --card-foreground: #0f0f0f;
+  --popover: #ffffff;
+  --popover-foreground: #0f0f0f;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #334155;
+  --accent: #f1f5f9;
+  --accent-foreground: #334155;
+  --destructive: #dc2626;
+  --border: #e5e7eb;
+  --input: #ffffff;
+  --ring: #3b82f6;
 }
 
 :root[data-theme="dark"] {
-  --theme-background: #0c0c0c;
-  --theme-foreground: #fafafa;
-  --theme-muted: #a1a1aa;
-  --theme-muted-foreground: #71717a;
-  --theme-surface: #171717;
-  --theme-surface-hover: #262626;
-  --theme-border: #404040;
-  --theme-accent: #3b82f6;
-  --theme-accent-foreground: #ffffff;
-  --theme-secondary: #27272a;
-  --theme-secondary-foreground: #a1a1aa;
-  --theme-input: #171717;
-  --theme-input-border: #404040;
-  --theme-card: #171717;
-  --theme-sidebar: #0a0a0a;
+  --background: #0c0c0c;
+  --foreground: #fafafa;
+  --muted: #171717;
+  --muted-foreground: #a1a1aa;
+  --card: #171717;
+  --card-foreground: #fafafa;
+  --popover: #171717;
+  --popover-foreground: #fafafa;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #27272a;
+  --secondary-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #a1a1aa;
+  --destructive: #dc2626;
+  --border: #404040;
+  --input: #171717;
+  --ring: #3b82f6;
 }
 
 :root[data-theme="contrast"] {
-  --theme-background: #000000;
-  --theme-foreground: #ffffff;
-  --theme-muted: #cccccc;
-  --theme-muted-foreground: #999999;
-  --theme-surface: #1a1a1a;
-  --theme-surface-hover: #333333;
-  --theme-border: #666666;
-  --theme-accent: #00ff00;
-  --theme-accent-foreground: #000000;
-  --theme-secondary: #333333;
-  --theme-secondary-foreground: #ffffff;
-  --theme-input: #1a1a1a;
-  --theme-input-border: #666666;
-  --theme-card: #1a1a1a;
-  --theme-sidebar: #000000;
+  --background: #000000;
+  --foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #cccccc;
+  --card: #1a1a1a;
+  --card-foreground: #ffffff;
+  --popover: #1a1a1a;
+  --popover-foreground: #ffffff;
+  --primary: #00ff00;
+  --primary-foreground: #000000;
+  --secondary: #333333;
+  --secondary-foreground: #ffffff;
+  --accent: #333333;
+  --accent-foreground: #ffffff;
+  --destructive: #ff0000;
+  --border: #666666;
+  --input: #1a1a1a;
+  --ring: #00ff00;
 }
 
-/* Theme utility classes */
-.bg-theme-background { background-color: var(--theme-background); }
-.bg-theme-surface { background-color: var(--theme-surface); }
-.bg-theme-surface-hover { background-color: var(--theme-surface-hover); }
-.bg-theme-card { background-color: var(--theme-card); }
-.bg-theme-accent { background-color: var(--theme-accent); }
-.bg-theme-secondary { background-color: var(--theme-secondary); }
-.bg-theme-sidebar { background-color: var(--theme-sidebar); }
-.bg-theme-input { background-color: var(--theme-input); }
-
-.text-theme-foreground { color: var(--theme-foreground); }
-.text-theme-muted { color: var(--theme-muted); }
-.text-theme-muted-foreground { color: var(--theme-muted-foreground); }
-.text-theme-accent { color: var(--theme-accent); }
-.text-theme-accent-foreground { color: var(--theme-accent-foreground); }
-.text-theme-secondary-foreground { color: var(--theme-secondary-foreground); }
-
-.border-theme-border { border-color: var(--theme-border); }
-.border-theme-input { border-color: var(--theme-input-border); }
+/* Theme utility classes - Now using Tailwind's built-in classes with CSS variables */
 
 /* Professional sidebar animations */
 @keyframes slideInLeft {
