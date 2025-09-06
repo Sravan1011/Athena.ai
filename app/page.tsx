@@ -22,12 +22,7 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [featuresDropdownOpen, setFeaturesDropdownOpen] = useState(false);
 
-  // Redirect signed-in users to dashboard
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      redirect('/dashboard');
-    }
-  }, [isLoaded, isSignedIn]);
+  // Removed automatic redirection to dashboard
   
   const stats = [
     { number: "99.7%", label: "Accuracy Rate" },
@@ -379,7 +374,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
               {isSignedIn ? (
                 <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-4 text-lg font-medium group shadow-lg">
-                  <Link href="/dashboard">
+                  <Link href="/fact-check">
                     <Search className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
                     Start fact checking
                   </Link>
@@ -660,7 +655,7 @@ export default function Home() {
           
           <div className="mt-8 pt-8 border-t border-gray-100 text-center">
             <p className="text-sm text-gray-500">
-              © 2024 ClaimAI. Empowering truth in the age of misinformation.
+              2024 ClaimAI. Empowering truth in the age of misinformation.
             </p>
           </div>
         </div>
