@@ -1,59 +1,37 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useUser, SignOutButton } from "@clerk/nextjs"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
-  Search,
   Loader2,
   ExternalLink,
   Sparkles,
   HomeIcon,
   FileText,
-  BarChart3,
   Shield,
   Info,
   BookOpen,
   ChevronDown,
   ChevronUp,
-  AlertTriangle,
   CheckCircle,
-  XCircle,
   Minus,
-  TrendingUp,
-  Eye,
   Clock,
-  Brain,
   Send,
-  History,
   Plus,
   Settings,
   Trash2,
 } from "lucide-react"
-import { cn, formatConfidence, getVerdictColor, getVerdictIcon, formatProcessingTime } from "@/lib/utils"
+import { cn, formatConfidence, getVerdictIcon, formatProcessingTime } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
 import Image from "next/image"
-import { useTheme } from '@/components/theme-provider'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { Conversation, Message } from '@/lib/supabase'
 
-// Define types for the enhanced API response
-interface EnhancedSource {
-  title: string
-  url: string
-  domain: string
-  credibilityScore: number
-  sourceType: "news" | "academic" | "government" | "fact-checker" | "blog" | "unknown"
-  publishDate?: string
-  relevanceScore: number
-  excerpt: string
-}
 
 
 interface FactCheckResult {
@@ -109,7 +87,6 @@ interface ChatMessage {
 
 export default function FactCheckPage() {
   const { user, isSignedIn } = useUser()
-  const { theme } = useTheme()
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<FactCheckResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -119,12 +96,6 @@ export default function FactCheckPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null)
   const [loadingConversations, setLoadingConversations] = useState(false)
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    evidence: false,
-    reasoning: false,
-    sources: false,
-    related: false
-  })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
@@ -135,14 +106,27 @@ export default function FactCheckPage() {
       }
     : null
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<FactCheckForm>({
+  useForm<FactCheckForm>({
     resolver: zodResolver(factCheckSchema),
   })
+
+  // Load user's conversations
+  const loadConversations = useCallback(async () => {
+    if (!isSignedIn) return
+    
+    setLoadingConversations(true)
+    try {
+      const response = await fetch('/api/conversations')
+      if (response.ok) {
+        const data = await response.json()
+        setConversations(data)
+      }
+    } catch (error) {
+      console.error('Failed to load conversations:', error)
+    } finally {
+      setLoadingConversations(false)
+    }
+  }, [isSignedIn])
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
@@ -154,7 +138,7 @@ export default function FactCheckPage() {
     if (isSignedIn) {
       loadConversations()
     }
-  }, [isSignedIn])
+  }, [isSignedIn, loadConversations])
 
   const onSubmit = async (data: FactCheckForm) => {
     if (!isSignedIn) {
@@ -297,25 +281,6 @@ export default function FactCheckPage() {
     }
   }
 
-
-  // Load user's conversations
-  const loadConversations = async () => {
-    if (!isSignedIn) return
-    
-    setLoadingConversations(true)
-    try {
-      const response = await fetch('/api/conversations')
-      if (response.ok) {
-        const data = await response.json()
-        setConversations(data)
-      }
-    } catch (error) {
-      console.error('Failed to load conversations:', error)
-    } finally {
-      setLoadingConversations(false)
-    }
-  }
-
   // Create new conversation
   const createNewConversation = async (title?: string) => {
     try {
@@ -338,7 +303,7 @@ export default function FactCheckPage() {
   }
 
   // Save message to database
-  const saveMessage = async (conversationId: number, role: 'user' | 'assistant', content: string, metadata?: any) => {
+  const saveMessage = async (conversationId: number, role: 'user' | 'assistant', content: string, metadata?: Record<string, unknown>) => {
     try {
       const response = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: 'POST',
@@ -413,41 +378,6 @@ export default function FactCheckPage() {
     setError(null)
     setCurrentInput("")
     setCurrentConversationId(null)
-  }
-
-  const resetForm = () => {
-    reset()
-    setResult(null)
-    setError(null)
-    setExpandedSections({
-      evidence: false,
-      reasoning: false,
-      sources: false,
-      related: false
-    })
-  }
-
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }))
-  }
-
-  const getSourceTypeIcon = (sourceType: string) => {
-    switch (sourceType) {
-      case 'government': return <Shield className="w-4 h-4 text-blue-600" />
-      case 'academic': return <BookOpen className="w-4 h-4 text-purple-600" />
-      case 'fact-checker': return <CheckCircle className="w-4 h-4 text-green-600" />
-      case 'news': return <FileText className="w-4 h-4 text-orange-600" />
-      default: return <Info className="w-4 h-4 text-gray-500" />
-    }
-  }
-
-  const getCredibilityColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 bg-green-50'
-    if (score >= 60) return 'text-yellow-600 bg-yellow-50'
-    return 'text-red-600 bg-red-50'
   }
 
 
@@ -672,7 +602,7 @@ export default function FactCheckPage() {
                 Fact Check Any Claim
               </h1>
               <p className="text-theme-muted max-w-md text-sm leading-relaxed">
-                Ask questions, verify claims, or analyze statements. I'll help you separate fact from fiction using AI-powered analysis.
+                Ask questions, verify claims, or analyze statements. I&apos;ll help you separate fact from fiction using AI-powered analysis.
               </p>
               
               {/* Quick Examples */}
@@ -836,6 +766,22 @@ function FactCheckResult({ result }: { result: FactCheckResult }) {
     }))
   }
 
+  const getSourceTypeIcon = (sourceType: string) => {
+    switch (sourceType) {
+      case 'government': return <Shield className="w-4 h-4 text-blue-600" />
+      case 'academic': return <BookOpen className="w-4 h-4 text-purple-600" />
+      case 'fact-checker': return <CheckCircle className="w-4 h-4 text-green-600" />
+      case 'news': return <FileText className="w-4 h-4 text-orange-600" />
+      default: return <Info className="w-4 h-4 text-gray-500" />
+    }
+  }
+
+  const getCredibilityColor = (score: number) => {
+    if (score >= 80) return 'text-green-600 bg-green-50'
+    if (score >= 60) return 'text-yellow-600 bg-yellow-50'
+    return 'text-red-600 bg-red-50'
+  }
+
   return (
     <div className="space-y-4">
       {/* Main Result */}
@@ -843,32 +789,63 @@ function FactCheckResult({ result }: { result: FactCheckResult }) {
         <div className="flex items-center space-x-2">
           <div
             className={cn(
-              "px-2 py-1 rounded-md text-xs font-medium flex items-center space-x-1.5",
-              result.verdict === "True" ? "bg-green-100 text-green-700" :
-              result.verdict === "False" ? "bg-red-100 text-red-700" :
-              "bg-yellow-100 text-yellow-700"
+              "px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center space-x-2 shadow-sm",
+              result.verdict === "True" ? "bg-green-100 text-green-800 border border-green-200" :
+              result.verdict === "False" ? "bg-red-100 text-red-800 border border-red-200" :
+              result.verdict === "Mostly True" ? "bg-green-50 text-green-700 border border-green-300" :
+              result.verdict === "Mostly False" ? "bg-red-50 text-red-700 border border-red-300" :
+              result.verdict === "Mixed" ? "bg-yellow-100 text-yellow-800 border border-yellow-200" :
+              "bg-gray-100 text-gray-700 border border-gray-200"
             )}
           >
-            {getVerdictIcon(result.verdict, "h-3 w-3")}
+            {getVerdictIcon(result.verdict, "h-4 w-4")}
             <span>{result.verdict}</span>
           </div>
           {result.confidence && (
-            <span className="text-theme-muted text-xs">
-              {formatConfidence(result.confidence)} confidence
-            </span>
+            <div className="flex items-center space-x-1">
+              <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full transition-all duration-500",
+                    result.confidence >= 0.8 ? "bg-green-500" :
+                    result.confidence >= 0.6 ? "bg-yellow-500" :
+                    "bg-red-500"
+                  )}
+                  style={{ width: `${result.confidence * 100}%` }}
+                />
+              </div>
+              <span className="text-theme-muted text-xs font-medium">
+                {formatConfidence(result.confidence)}
+              </span>
+            </div>
           )}
         </div>
         {result.processingTimeMs && (
-          <span className="text-theme-muted text-xs flex items-center">
-            <Clock className="w-3 h-3 mr-1" />
-            {formatProcessingTime(result.processingTimeMs)}
-          </span>
+          <div className="flex items-center space-x-1 text-theme-muted text-xs">
+            <Clock className="w-3 h-3" />
+            <span>{formatProcessingTime(result.processingTimeMs)}</span>
+          </div>
         )}
       </div>
 
       {/* Explanation */}
       <div>
-        <h3 className="text-sm font-semibold text-theme-foreground mb-2">Analysis</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-theme-foreground">Analysis</h3>
+          {result.evidence?.evidenceQuality && (
+            <div className="flex items-center space-x-1">
+              <span className="text-xs text-theme-muted">Evidence Quality:</span>
+              <span className={cn(
+                "px-2 py-1 rounded-full text-xs font-medium",
+                result.evidence.evidenceQuality === 'high' ? "bg-green-100 text-green-700" :
+                result.evidence.evidenceQuality === 'medium' ? "bg-yellow-100 text-yellow-700" :
+                "bg-red-100 text-red-700"
+              )}>
+                {result.evidence.evidenceQuality.toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
         <p className="text-sm text-theme-foreground leading-relaxed">{result.explanation}</p>
       </div>
 
@@ -885,24 +862,61 @@ function FactCheckResult({ result }: { result: FactCheckResult }) {
           
           {expandedSections.sources && (
             <div className="mt-4 space-y-3">
-              {result.sources.slice(0, 5).map((source, index) => (
-                <div key={index} className="p-3 bg-theme-surface rounded-lg border border-theme-border">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="notion-body-themed font-medium">{source.title}</h4>
-                    <span className="notion-body-sm-themed text-theme-muted">
-                      {source.credibilityScore}%
-                    </span>
+              {result.sources.slice(0, 8).map((source, index) => (
+                <div key={index} className="p-4 bg-theme-surface rounded-lg border border-theme-border hover:shadow-sm transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-2 flex-1">
+                      {getSourceTypeIcon(source.sourceType)}
+                      <h4 className="notion-body-themed font-medium flex-1">{source.title}</h4>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1">
+                        <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full transition-all duration-300",
+                              source.credibilityScore >= 80 ? "bg-green-500" :
+                              source.credibilityScore >= 60 ? "bg-yellow-500" :
+                              "bg-red-500"
+                            )}
+                            style={{ width: `${source.credibilityScore}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-theme-muted">
+                          {source.credibilityScore}%
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="notion-body-sm-themed text-theme-muted mb-2">{source.excerpt}</p>
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-theme-accent hover:underline notion-body-sm-themed flex items-center"
-                  >
-                    {source.domain}
-                    <ExternalLink className="w-3 h-3 ml-1" />
-                  </a>
+                  
+                  <p className="notion-body-sm-themed text-theme-muted mb-3 leading-relaxed">{source.excerpt}</p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-theme-accent hover:underline notion-body-sm-themed flex items-center"
+                      >
+                        {source.domain}
+                        <ExternalLink className="w-3 h-3 ml-1" />
+                      </a>
+                      {source.publishDate && (
+                        <span className="text-xs text-theme-muted">
+                          {new Date(source.publishDate).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className={cn(
+                        "px-2 py-1 rounded-full text-xs font-medium",
+                        getCredibilityColor(source.credibilityScore)
+                      )}>
+                        {source.sourceType}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

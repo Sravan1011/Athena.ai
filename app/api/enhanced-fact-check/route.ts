@@ -60,10 +60,46 @@ interface EnhancedFactCheckResult {
   processingTimeMs: number;
 }
 
-// Removed unused interface
+// Simple in-memory cache for fact-check results
+const factCheckCache = new Map<string, { result: EnhancedFactCheckResult; timestamp: number }>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+function getCachedResult(claim: string): EnhancedFactCheckResult | null {
+  const normalizedClaim = claim.toLowerCase().trim();
+  const cached = factCheckCache.get(normalizedClaim);
+  
+  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+    console.log('Returning cached result for claim:', claim);
+    return cached.result;
+  }
+  
+  if (cached) {
+    factCheckCache.delete(normalizedClaim);
+  }
+  
+  return null;
+}
+
+function setCachedResult(claim: string, result: EnhancedFactCheckResult): void {
+  const normalizedClaim = claim.toLowerCase().trim();
+  factCheckCache.set(normalizedClaim, {
+    result,
+    timestamp: Date.now()
+  });
+  
+  // Clean up old cache entries periodically
+  if (factCheckCache.size > 100) {
+    const now = Date.now();
+    for (const [key, value] of factCheckCache.entries()) {
+      if (now - value.timestamp > CACHE_TTL) {
+        factCheckCache.delete(key);
+      }
+    }
+  }
+}
 
 // Enhanced system prompts with better reasoning and structure
-const ENHANCED_FACT_CHECK_PROMPT = `You are an expert fact-checking assistant with advanced reasoning capabilities. Your task is to provide a comprehensive, well-reasoned analysis of the given claim using the search results.
+const ENHANCED_FACT_CHECK_PROMPT = `You are an expert fact-checking assistant with advanced reasoning capabilities and access to real-time information. Your task is to provide a comprehensive, well-reasoned analysis of the given claim using the search results.
 
 CLAIM TO ANALYZE: {claim}
 
@@ -71,14 +107,15 @@ SEARCH RESULTS:
 {search_results}
 
 ANALYSIS FRAMEWORK:
-Follow this structured reasoning process:
+Follow this structured reasoning process with enhanced critical thinking:
 
-1. CLAIM DECONSTRUCTION
-2. EVIDENCE EVALUATION  
-3. SOURCE CREDIBILITY ASSESSMENT
-4. REASONING CHAIN
-5. VERDICT DETERMINATION
-6. CONFIDENCE CALCULATION
+1. CLAIM DECONSTRUCTION & CONTEXTUALIZATION
+2. EVIDENCE EVALUATION & CROSS-VERIFICATION
+3. SOURCE CREDIBILITY ASSESSMENT & BIAS DETECTION
+4. TEMPORAL ANALYSIS & RECENCY ASSESSMENT
+5. REASONING CHAIN & LOGICAL CONSISTENCY
+6. VERDICT DETERMINATION & CONFIDENCE CALCULATION
+7. UNCERTAINTY ACKNOWLEDGMENT & LIMITATIONS
 
 REQUIRED OUTPUT SECTIONS:
 
@@ -167,15 +204,33 @@ REQUIRED OUTPUT SECTIONS:
 - Completeness of available data
 - Potential for new information to change verdict
 
-ANALYSIS QUALITY STANDARDS:
-- Be thorough and systematic in your reasoning
-- Acknowledge uncertainty and limitations
-- Provide specific evidence with sources when possible
-- Use clear, objective language
+ENHANCED ANALYSIS QUALITY STANDARDS:
+- Be thorough and systematic in your reasoning with step-by-step logic
+- Acknowledge uncertainty and limitations transparently
+- Provide specific evidence with sources and dates when possible
+- Use clear, objective language while maintaining nuance
 - Consider multiple perspectives and interpretations
 - Base conclusions on verifiable evidence, not speculation
+- Cross-reference information across multiple independent sources
+- Assess the recency and temporal relevance of evidence
+- Identify potential biases in sources and evidence
+- Distinguish between correlation and causation
+- Consider the broader context and implications
+- Evaluate the strength and quality of evidence systematically
+- Be explicit about what evidence is missing or uncertain
+- Use confidence levels appropriately based on evidence strength
 
-IMPORTANT: Use precise, unambiguous language. Avoid hedging unless genuinely uncertain. Provide specific evidence and reasoning for your conclusions.`;
+CRITICAL THINKING REQUIREMENTS:
+- Question the reliability of each source independently
+- Look for patterns and inconsistencies across sources
+- Consider alternative explanations for the evidence
+- Assess whether the evidence actually supports the specific claim
+- Distinguish between facts, opinions, and interpretations
+- Consider the potential for misinformation or disinformation
+- Evaluate whether the claim is testable and verifiable
+- Assess the scope and limitations of the available evidence
+
+IMPORTANT: Use precise, unambiguous language. Avoid hedging unless genuinely uncertain. Provide specific evidence and reasoning for your conclusions. When uncertain, explain why and what additional evidence would be needed.`;
 
 const QUERY_GENERATION_PROMPT = `You are an expert search query generator for comprehensive fact-checking analysis.
 
@@ -188,6 +243,8 @@ ANALYSIS APPROACH:
 2. Consider different angles and perspectives
 3. Target multiple source types for balanced analysis
 4. Include both supporting and contradictory evidence searches
+5. Generate queries for different time periods and contexts
+6. Include expert opinion and academic research searches
 
 QUERY REQUIREMENTS:
 - Include specific entities, names, dates, and details from the claim
@@ -196,18 +253,24 @@ QUERY REQUIREMENTS:
 - Design queries to find both supporting AND contradictory evidence
 - Include temporal constraints for time-sensitive claims
 - Consider different phrasings and synonyms
+- Include domain-specific searches (medical, scientific, political, etc.)
 
 SEARCH STRATEGY:
 1. Primary query: Direct fact-check of the specific claim
 2. Context query: Background information and broader context
 3. Source query: Official statements, reports, or data
 4. Verification query: Cross-reference with fact-checking organizations
+5. Expert query: Academic papers, expert opinions, research studies
+6. Recent query: Latest developments and updates
+7. Contradictory query: Evidence that might refute the claim
 
 EXAMPLES:
 - Policy: "Biden student loan forgiveness 2023 official announcement site:whitehouse.gov OR site:ed.gov"
 - Statistics: "unemployment rate March 2024 Bureau Labor Statistics official data"
 - Events: "Taylor Swift concert cancellation official statement site:reuters.com OR site:ap.org"
 - Recent: "latest [topic] 2024 official announcement fact check"
+- Academic: "[topic] research study 2023 2024 site:pubmed.ncbi.nlm.nih.gov OR site:scholar.google.com"
+- Expert: "[topic] expert opinion analysis 2024 site:theconversation.com OR site:brookings.edu"
 
 Return only the PRIMARY search query (most comprehensive) - no additional text.`;
 
@@ -241,7 +304,7 @@ async function enhanceAnalysisWithContext(analysis: string, sources: EnhancedSou
   return analysis + sourceAnalysis;
 }
 
-async function generateFactCheckQuery(claim: string): Promise<string> {
+async function generateFactCheckQueries(claim: string): Promise<string[]> {
   const currentTime = new Date().toISOString();
   const prompt = QUERY_GENERATION_PROMPT.replace('{current_time}', currentTime) + 
     `\n\nClaim to fact-check: ${claim}`;
@@ -268,12 +331,35 @@ async function generateFactCheckQuery(claim: string): Promise<string> {
     const data = await response.json();
     const generatedQuery = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().replace(/['"]/g, '') || '';
     
-    return generatedQuery || `${claim} fact check site:snopes.com OR site:factcheck.org OR site:politifact.com`;
+    // Generate multiple targeted queries for comprehensive coverage
+    const baseQuery = generatedQuery || `${claim} fact check`;
+    const queries = [
+      baseQuery,
+      `${claim} site:snopes.com OR site:factcheck.org OR site:politifact.com`,
+      `${claim} official statement OR government data`,
+      `${claim} research study OR academic paper`,
+      `${claim} expert opinion OR analysis`,
+      `${claim} latest news OR recent update`,
+      `${claim} debunked OR refuted OR false`,
+      `${claim} verified OR confirmed OR true`
+    ];
+    
+    return [...new Set(queries)]; // Remove duplicates
   } catch (error) {
-    console.error('Error generating fact-check query:', error);
-    return `${claim} fact check site:snopes.com OR site:factcheck.org OR site:politifact.com`;
+    console.error('Error generating fact-check queries:', error);
+    return [
+      `${claim} fact check site:snopes.com OR site:factcheck.org OR site:politifact.com`,
+      `${claim} official statement`,
+      `${claim} research study`
+    ];
   }
 }
+
+// Legacy function for backward compatibility - now using generateFactCheckQueries
+// async function generateFactCheckQuery(claim: string): Promise<string> {
+//   const queries = await generateFactCheckQueries(claim);
+//   return queries[0]; // Return primary query for backward compatibility
+// }
 
 async function searchWeb(query: string, maxResults: number = 5): Promise<{ results: Array<{ title: string; url: string; content: string; published_date?: string; score?: number }> }> {
   try {
@@ -299,6 +385,34 @@ async function searchWeb(query: string, maxResults: number = 5): Promise<{ resul
     return await response.json();
   } catch (error) {
     console.error('Error performing search:', error);
+    return { results: [] };
+  }
+}
+
+async function searchWebParallel(queries: string[], maxResultsPerQuery: number = 3): Promise<{ results: Array<{ title: string; url: string; content: string; published_date?: string; score?: number }> }> {
+  try {
+    // Execute all searches in parallel for faster results
+    const searchPromises = queries.map(query => 
+      searchWeb(query, maxResultsPerQuery).catch(error => {
+        console.error(`Search failed for query "${query}":`, error);
+        return { results: [] };
+      })
+    );
+
+    const searchResults = await Promise.all(searchPromises);
+    
+    // Combine and deduplicate results
+    const allResults = searchResults.flatMap(result => result.results || []);
+    const uniqueResults = allResults.filter((result, index, self) => 
+      index === self.findIndex(r => r.url === result.url)
+    );
+
+    // Sort by relevance score if available
+    uniqueResults.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+    return { results: uniqueResults };
+  } catch (error) {
+    console.error('Error in parallel search:', error);
     return { results: [] };
   }
 }
@@ -350,11 +464,39 @@ async function analyzeEvidence(claim: string, searchResults: { results: Array<{ 
 
 function extractEnhancedSources(searchResults: { results: Array<{ title: string; url: string; content: string; published_date?: string; score?: number }> }): EnhancedSource[] {
   const sources = [];
-  for (const result of searchResults.results?.slice(0, 7) || []) {
+  for (const result of searchResults.results?.slice(0, 10) || []) {
     const url = result.url || 'No URL';
     const domain = getDomainFromUrl(url);
     const sourceType = determineSourceType(domain);
-    const credibilityScore = calculateCredibilityScore(domain, sourceType);
+    const credibilityScore = calculateCredibilityScore(domain, sourceType, result.title, result.content);
+    
+    // Calculate relevance score based on content quality and search score
+    let relevanceScore = 60; // Base relevance
+    if (result.score) {
+      relevanceScore = Math.min(95, Math.max(60, result.score * 100));
+    }
+    
+    // Boost relevance for high-quality content indicators
+    if (result.content) {
+      const qualityIndicators = ['according to', 'study shows', 'research indicates', 'data reveals', 'statistics show', 'official report'];
+      const hasQualityIndicators = qualityIndicators.some(indicator => 
+        result.content.toLowerCase().includes(indicator)
+      );
+      if (hasQualityIndicators) {
+        relevanceScore += 10;
+      }
+      
+      // Boost for recent content
+      if (result.published_date) {
+        const publishDate = new Date(result.published_date);
+        const daysSincePublish = (Date.now() - publishDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSincePublish < 30) {
+          relevanceScore += 5;
+        } else if (daysSincePublish < 365) {
+          relevanceScore += 2;
+        }
+      }
+    }
     
     sources.push({
       title: result.title || 'No title',
@@ -362,11 +504,12 @@ function extractEnhancedSources(searchResults: { results: Array<{ title: string;
       domain,
       credibilityScore,
       sourceType,
-      relevanceScore: Math.min(95, Math.max(60, Math.floor(Math.random() * 35) + 60)), // Simulated relevance
-      excerpt: result.content ? result.content.substring(0, 200) + '...' : 'No content available'
+      relevanceScore: Math.min(95, relevanceScore),
+      excerpt: result.content ? result.content.substring(0, 200) + '...' : 'No content available',
+      publishDate: result.published_date
     });
   }
-  return sources.sort((a, b) => b.credibilityScore - a.credibilityScore);
+  return sources.sort((a, b) => (b.credibilityScore + b.relevanceScore) - (a.credibilityScore + a.relevanceScore));
 }
 
 function getDomainFromUrl(url: string): string {
@@ -390,7 +533,7 @@ function determineSourceType(domain: string): EnhancedSource['sourceType'] {
   return 'unknown';
 }
 
-function calculateCredibilityScore(domain: string, sourceType: EnhancedSource['sourceType']): number {
+function calculateCredibilityScore(domain: string, sourceType: EnhancedSource['sourceType'], title?: string, content?: string): number {
   const baseScores = {
     'government': 90,
     'academic': 85,
@@ -402,13 +545,80 @@ function calculateCredibilityScore(domain: string, sourceType: EnhancedSource['s
   
   let score = baseScores[sourceType];
   
-  // Boost for high-credibility domains
-  const highCredibilityDomains = ['bbc.com', 'reuters.com', 'ap.org', 'snopes.com', 'factcheck.org', 'politifact.com'];
-  if (highCredibilityDomains.some(d => domain.includes(d))) {
-    score += 10;
+  // High-credibility domains with specific scoring
+  const highCredibilityDomains = {
+    'bbc.com': 95,
+    'reuters.com': 95,
+    'ap.org': 95,
+    'snopes.com': 92,
+    'factcheck.org': 92,
+    'politifact.com': 92,
+    'fullfact.org': 92,
+    'whitehouse.gov': 98,
+    'cdc.gov': 98,
+    'nih.gov': 98,
+    'who.int': 98,
+    'nature.com': 94,
+    'science.org': 94,
+    'pubmed.ncbi.nlm.nih.gov': 96,
+    'scholar.google.com': 88,
+    'jstor.org': 90,
+    'theconversation.com': 85,
+    'brookings.edu': 88,
+    'rand.org': 88,
+    'pewresearch.org': 87
+  };
+  
+  // Check for exact domain matches first
+  for (const [credDomain, credScore] of Object.entries(highCredibilityDomains)) {
+    if (domain.includes(credDomain)) {
+      score = credScore;
+      break;
+    }
   }
   
-  return Math.min(100, score);
+  // Additional credibility factors
+  if (title && content) {
+    // Boost for official language indicators
+    const officialIndicators = ['official', 'government', 'federal', 'state', 'department', 'bureau', 'institute', 'university', 'research'];
+    const hasOfficialLanguage = officialIndicators.some(indicator => 
+      title.toLowerCase().includes(indicator) || content.toLowerCase().includes(indicator)
+    );
+    if (hasOfficialLanguage && score < 90) {
+      score += 5;
+    }
+    
+    // Boost for academic indicators
+    const academicIndicators = ['study', 'research', 'analysis', 'peer-reviewed', 'journal', 'university', 'institute'];
+    const hasAcademicLanguage = academicIndicators.some(indicator => 
+      title.toLowerCase().includes(indicator) || content.toLowerCase().includes(indicator)
+    );
+    if (hasAcademicLanguage && sourceType === 'academic') {
+      score += 3;
+    }
+    
+    // Penalty for sensational language
+    const sensationalIndicators = ['shocking', 'amazing', 'incredible', 'unbelievable', 'you won\'t believe', 'clickbait'];
+    const hasSensationalLanguage = sensationalIndicators.some(indicator => 
+      title.toLowerCase().includes(indicator) || content.toLowerCase().includes(indicator)
+    );
+    if (hasSensationalLanguage) {
+      score -= 10;
+    }
+  }
+  
+  // Domain-specific adjustments
+  if (domain.includes('.edu')) {
+    score = Math.max(score, 80); // Educational institutions get minimum 80
+  }
+  if (domain.includes('.gov')) {
+    score = Math.max(score, 85); // Government sites get minimum 85
+  }
+  if (domain.includes('.org') && !domain.includes('factcheck') && !domain.includes('snopes')) {
+    score = Math.min(score, 75); // General .org sites capped at 75 unless fact-checkers
+  }
+  
+  return Math.max(10, Math.min(100, score));
 }
 
 function parseAnalysis(analysis: string) {
@@ -485,7 +695,7 @@ interface ParsedAnalysis {
   confidenceFactors: string;
 }
 
-function createEvidenceBreakdown(parsedAnalysis: ParsedAnalysis): EvidenceBreakdown {
+function createEvidenceBreakdown(parsedAnalysis: ParsedAnalysis, sources: EnhancedSource[] = []): EvidenceBreakdown {
   const supporting = parsedAnalysis.supportingEvidence.split('\n')
     .filter((line: string) => line.trim().startsWith('•') || line.trim().startsWith('-') || line.trim().startsWith('*'))
     .map((line: string) => line.replace(/^[•\-*]\s*/, '').trim())
@@ -501,22 +711,52 @@ function createEvidenceBreakdown(parsedAnalysis: ParsedAnalysis): EvidenceBreakd
     .map((line: string) => line.replace(/^[•\-*]\s*/, '').trim())
     .filter((line: string) => line.length > 0 && !line.includes('[') && !line.includes(']'));
   
-  // Enhanced evidence quality assessment
+  // Enhanced evidence quality assessment with cross-verification
   const totalEvidence = supporting.length + contradicting.length + neutral.length;
   const evidenceDiversity = new Set([...supporting, ...contradicting, ...neutral]).size;
+  
+  // Check for evidence specificity and verifiability
   const evidenceSpecificity = [...supporting, ...contradicting, ...neutral].filter(evidence => 
     evidence.includes('according to') || 
     evidence.includes('reported by') || 
     evidence.includes('data shows') || 
     evidence.includes('statistics') ||
     evidence.includes('study') ||
-    evidence.includes('research')
+    evidence.includes('research') ||
+    evidence.includes('official') ||
+    evidence.includes('government') ||
+    evidence.includes('university') ||
+    evidence.includes('journal')
   ).length;
   
+  // Check for source diversity and credibility
+  const sourceDiversity = new Set(sources.map(s => s.domain)).size;
+  const avgSourceCredibility = sources.reduce((sum, s) => sum + s.credibilityScore, 0) / Math.max(sources.length, 1);
+  const highCredibilitySources = sources.filter(s => s.credibilityScore >= 80).length;
+  
+  // Check for temporal diversity (recent vs older sources)
+  const recentSources = sources.filter(s => {
+    if (!s.publishDate) return false;
+    const publishDate = new Date(s.publishDate);
+    const daysSincePublish = (Date.now() - publishDate.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSincePublish < 365; // Within last year
+  }).length;
+  
+  // Enhanced evidence quality calculation
   let evidenceQuality: "high" | "medium" | "low";
-  if (totalEvidence >= 6 && evidenceDiversity >= 4 && evidenceSpecificity >= 2) {
+  
+  const qualityScore = 
+    (totalEvidence >= 6 ? 3 : totalEvidence >= 3 ? 2 : 1) + // Evidence quantity
+    (evidenceDiversity >= 4 ? 3 : evidenceDiversity >= 2 ? 2 : 1) + // Evidence diversity
+    (evidenceSpecificity >= 3 ? 3 : evidenceSpecificity >= 1 ? 2 : 1) + // Evidence specificity
+    (sourceDiversity >= 4 ? 3 : sourceDiversity >= 2 ? 2 : 1) + // Source diversity
+    (avgSourceCredibility >= 80 ? 3 : avgSourceCredibility >= 60 ? 2 : 1) + // Source credibility
+    (highCredibilitySources >= 3 ? 2 : highCredibilitySources >= 1 ? 1 : 0) + // High-credibility sources
+    (recentSources >= 2 ? 1 : 0); // Recent sources
+  
+  if (qualityScore >= 15) {
     evidenceQuality = 'high';
-  } else if (totalEvidence >= 3 && evidenceDiversity >= 2) {
+  } else if (qualityScore >= 10) {
     evidenceQuality = 'medium';
   } else {
     evidenceQuality = 'low';
@@ -652,14 +892,20 @@ export async function POST(request: NextRequest) {
 
     const trimmedClaim = claim.trim();
 
-    // Step 1: Generate optimized search query
-    console.log('Generating optimized search query...');
-    const searchQuery = await generateFactCheckQuery(trimmedClaim);
-    console.log(`Generated query: ${searchQuery}`);
+    // Check cache first
+    const cachedResult = getCachedResult(trimmedClaim);
+    if (cachedResult) {
+      return NextResponse.json(cachedResult);
+    }
 
-    // Step 2: Search for evidence with multiple queries for comprehensive coverage
-    console.log('Searching for evidence...');
-    const searchResults = await searchWeb(searchQuery, 10); // Increased results for better coverage
+    // Step 1: Generate multiple optimized search queries
+    console.log('Generating optimized search queries...');
+    const searchQueries = await generateFactCheckQueries(trimmedClaim);
+    console.log(`Generated ${searchQueries.length} queries:`, searchQueries);
+
+    // Step 2: Search for evidence with parallel queries for comprehensive coverage
+    console.log('Searching for evidence with parallel queries...');
+    const searchResults = await searchWebParallel(searchQueries, 3); // 3 results per query for better coverage
 
     if (!searchResults.results?.length) {
       return NextResponse.json(
@@ -681,7 +927,7 @@ export async function POST(request: NextRequest) {
     const parsedAnalysis = parseAnalysis(enhancedAnalysis);
     
     const verdict = determineVerdict(parsedAnalysis.verdict);
-    const evidence = createEvidenceBreakdown(parsedAnalysis);
+    const evidence = createEvidenceBreakdown(parsedAnalysis, sources);
     const reasoning = createReasoningBreakdown(parsedAnalysis);
     
     // Calculate enhanced confidence with all factors
@@ -706,6 +952,9 @@ export async function POST(request: NextRequest) {
       relatedClaims,
       processingTimeMs
     };
+
+    // Cache the result for future requests
+    setCachedResult(trimmedClaim, result);
 
     return NextResponse.json(result);
 
