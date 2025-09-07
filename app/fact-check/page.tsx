@@ -3,7 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useUser, SignOutButton } from "@clerk/nextjs"
 import { useForm } from "react-hook-form"
+import type { TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api'
 import { zodResolver } from "@hookform/resolvers/zod"
+import * as pdfjs from 'pdfjs-dist'
 import { z } from "zod"
 import { useSearchParams } from "next/navigation"
 import {
@@ -24,6 +26,14 @@ import {
   Plus,
   Settings,
   Trash2,
+  Upload,
+  UploadCloud,
+  X,
+  FileText as FileTextIcon,
+  File,
+  FileType2,
+  FileCheck2,
+  FileX2
 } from "lucide-react"
 import { cn, formatConfidence, getVerdictIcon, formatProcessingTime } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -95,6 +105,10 @@ export default function FactCheckPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
   const [currentInput, setCurrentInput] = useState("")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [extractedText, setExtractedText] = useState<string>('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null)
   const [loadingConversations, setLoadingConversations] = useState(false)
@@ -124,7 +138,203 @@ export default function FactCheckPage() {
     }
   }, [searchParams, setValue])
 
-  // Handle fact-check function for auto-fact-check
+  // Check file size (5MB limit)
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+  // Extract text from uploaded file
+  const extractTextFromFile = async (file: File): Promise<string> => {
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error('File size exceeds 5MB limit');
+    }
+
+    return new Promise((resolve, reject) => {
+      if (file.type === 'application/pdf') {
+        // For PDF files
+        const reader = new FileReader()
+        
+        reader.onload = async (e: ProgressEvent<FileReader>) => {
+          const target = e.target as FileReader;
+          if (!target || !target.result) {
+            reject(new Error('File reading failed'));
+            return;
+          }
+
+          try {
+            // Use the CDN version of the worker
+            pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
+            // Load the PDF document
+            const loadingTask = pdfjs.getDocument(target.result as ArrayBuffer);
+            const pdf = await loadingTask.promise;
+            
+            let text = ''
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const content = await page.getTextContent();
+              const strings = content.items
+                .filter((item): item is TextItem => 'str' in item && typeof (item as TextItem).str === 'string')
+                .map((item: TextItem) => item.str);
+              text += strings.join(' ') + '\n\n';
+
+              // Update progress in state if needed
+              setExtractedText(`Extracting text... Page ${i} of ${pdf.numPages}`);
+              
+              // Add a small delay to prevent UI freeze
+              await new Promise(resolve => setTimeout(resolve, 0));
+            }
+            resolve(text.trim());
+          } catch (error) {
+            console.error('Error extracting text from PDF:', error);
+            reject(new Error('Failed to process PDF. The file may be corrupted or password protected.'));
+          }
+        };
+        
+        reader.onerror = () => {
+          reject(new Error('Error reading file'));
+        };
+        
+        reader.readAsArrayBuffer(file)
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        // For DOCX files
+        const reader = new FileReader()
+        reader.onload = async (e: ProgressEvent<FileReader>) => {
+          try {
+            const target = e.target as FileReader;
+            if (!target || !target.result) {
+              reject(new Error('Failed to read file'));
+              return;
+            }
+            // @ts-ignore - docx types
+            const { extractText } = await import('mammoth')
+            const result = await extractText({ arrayBuffer: target.result })
+            resolve(result.value)
+          } catch (error) {
+            console.error('Error extracting text from DOCX:', error)
+            reject(error)
+          }
+        }
+        reader.readAsArrayBuffer(file)
+      } else {
+        // For plain text files
+        const reader = new FileReader()
+        reader.onload = (e) => resolve(e.target?.result?.toString() || '')
+        reader.onerror = (error) => reject(error)
+        reader.readAsText(file)
+      }
+    })
+  }
+
+  // Extract claims from text using Gemini
+  const extractClaimsFromText = async (text: string): Promise<string[]> => {
+    try {
+      const response = await fetch('/api/extract-claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      })
+      
+      if (!response.ok) throw new Error('Failed to extract claims')
+      const data = await response.json()
+      return data.claims || []
+    } catch (error) {
+      console.error('Error extracting claims:', error)
+      throw error
+    }
+  }
+
+  // Handle file upload and processing
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+
+    setIsUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload-document', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = data.error || 'Failed to upload document';
+        console.error('Upload error:', errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      if (!data.claim) {
+        console.error('No claim generated from document');
+        throw new Error('Could not extract a claim from the document');
+      }
+
+      const claim = data.claim.trim();
+      setCurrentInput(claim);
+      onSubmit({ claim });
+    } catch (error) {
+      console.error('Failed to upload document:', error);
+      setError('Failed to upload document');
+    } finally {
+      setIsUploading(false);
+    }
+    setSelectedFile(file);
+    setExtractedText('Processing document...');
+    setError(null);
+
+    try {
+      // 1. Extract text from the file
+      const text = await extractTextFromFile(file);
+      
+      // 2. Extract claims from the text
+      setExtractedText('Extracting claims...')
+      const claims = await extractClaimsFromText(text)
+      
+      if (claims.length === 0) {
+        setError('No claims found in the document')
+        return
+      }
+
+      // 3. Process each claim through fact-checking
+      setExtractedText(`Found ${claims.length} claims. Fact-checking...`)
+      
+      for (const claim of claims) {
+        await handleFactCheck({ claim })
+        // Small delay between claims to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+      
+      setExtractedText('')
+    } catch (error) {
+      console.error('Error processing file:', error)
+      setError(`Error processing file: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Handle file input change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const validTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain'
+    ]
+    
+    if (!validTypes.includes(file.type)) {
+      setError('Please upload a PDF, DOCX, or text file')
+      return
+    }
+
+    handleFileUpload(file);
+  }
+
+  // Handle fact-check function
   const handleFactCheck = useCallback(async (data: { claim: string }) => {
     if (!isSignedIn) {
       setError("Please sign in to use the fact checker")
@@ -525,7 +735,6 @@ export default function FactCheckPage() {
     setCurrentConversationId(null)
   }
 
-
   if (!isSignedIn) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -849,28 +1058,57 @@ export default function FactCheckPage() {
           <div className="max-w-2xl mx-auto">
             <form onSubmit={(e) => e.preventDefault()} className="relative">
               <div className="relative flex items-end">
-                <textarea
-                  ref={textareaRef}
-                  value={currentInput}
-                  onChange={(e) => setCurrentInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      if (currentInput.trim()) {
-                        onSubmit({ claim: currentInput })
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={textareaRef}
+                    value={currentInput}
+                    onChange={(e) => setCurrentInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        if (currentInput.trim()) {
+                          onSubmit({ claim: currentInput })
+                        }
                       }
-                    }
-                  }}
-                  placeholder="Ask anything or fact-check a claim..."
-                  className="perplexity-search w-full px-4 py-3 pr-20 resize-none text-sm placeholder:text-muted-foreground-foreground focus:outline-none min-h-[44px] max-h-32"
-                  disabled={isLoading}
-                  rows={1}
-                />
+                    }}
+                    placeholder="Ask anything or fact-check a claim..."
+                    className="perplexity-search w-full px-4 py-3 pr-20 resize-none text-sm placeholder:text-muted-foreground-foreground focus:outline-none min-h-[44px] max-h-32"
+                    disabled={isLoading || isUploading}
+                    rows={1}
+                  />
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".pdf,.docx,.txt"
+                    className="hidden"
+                    disabled={isLoading || isUploading}
+                  />
+                </div>
                 <div className="absolute right-2 bottom-2 flex items-center space-x-1">
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="h-7 w-7 p-0 bg-muted hover:bg-muted-hover rounded-md border border-border flex items-center justify-center transition-colors group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20"
+                      disabled={isLoading || isUploading}
+                      title="Upload document"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      Upload PDF/DOCX
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     className="h-7 w-7 p-0 bg-muted hover:bg-muted-hover rounded-md border border-border flex items-center justify-center transition-colors"
-                    disabled={isLoading}
+                    disabled={isLoading || isUploading}
                     title="Keyboard shortcut: Cmd+Enter"
                   >
                     <span className="text-xs text-muted-foreground font-mono">⌘</span>
@@ -882,7 +1120,7 @@ export default function FactCheckPage() {
                         onSubmit({ claim: currentInput })
                       }
                     }}
-                    disabled={isLoading || !currentInput.trim()}
+                    disabled={isLoading || isUploading || !currentInput.trim()}
                     className="bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 h-7 w-7 p-0 rounded-md flex items-center justify-center transition-all"
                   >
                     {isLoading ? (
@@ -894,6 +1132,66 @@ export default function FactCheckPage() {
                 </div>
               </div>
             </form>
+            
+            {selectedFile && (
+              <div className="mt-2 flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-md border border-border">
+                <div className="flex items-center overflow-hidden">
+                  <div className="flex-shrink-0 p-1.5 mr-2 rounded-md bg-blue-50 dark:bg-blue-900/30">
+                    {selectedFile.name.endsWith('.pdf') ? (
+                      <FileTextIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    ) : selectedFile.name.endsWith('.docx') ? (
+                      <FileType2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    ) : (
+                      <File className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • {selectedFile.type}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setSelectedFile(null)
+                    setExtractedText('')
+                    if (fileInputRef.current) fileInputRef.current.value = ''
+                    // Remove the document content from the input if it exists
+                    if (currentInput.includes('Document content from')) {
+                      setCurrentInput(currentInput.split('\nDocument content from')[0])
+                    }
+                  }}
+                  className="ml-2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  title="Remove file"
+                  disabled={isUploading}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+            
+            {isUploading && extractedText && (
+              <div className="mt-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-100 dark:border-blue-800/50">
+                <div className="flex items-center">
+                  <Loader2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 animate-spin mr-2" />
+                  <p className="text-xs text-blue-700 dark:text-blue-300">{extractedText}</p>
+                </div>
+                {!extractedText.includes('Fact-checking') && (
+                  <div className="mt-1.5 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                    <div 
+                      className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                      style={{
+                        width: extractedText.includes('Extracting text') ? '40%' : 
+                               extractedText.includes('Extracting claims') ? '70%' : '100%'
+                      }}
+                    ></div>
+                  </div>
+                )}
+              </div>
+            )}
             
             {error && (
               <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded-md">
