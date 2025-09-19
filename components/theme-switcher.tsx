@@ -15,7 +15,7 @@ export function ThemeSwitcher() {
 
   return (
     <div className="flex items-center bg-muted rounded-lg p-1 border border-border w-full justify-center">
-      {themes.map(({ value, label, icon: Icon }) => (
+      {themes.map(({ value, icon: Icon }) => (
         <Button
           key={value}
           variant="ghost"

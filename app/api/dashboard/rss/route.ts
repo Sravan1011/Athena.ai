@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { createClient } from '@supabase/supabase-js';
 
 // RSS feed sources configuration - Updated with working URLs
 const RSS_SOURCES = [
@@ -107,20 +106,23 @@ interface ProcessedClaim {
   credibilityScore: number;
 }
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Initialize Supabase client (currently unused but kept for future use)
+// const supabase = createClient(
+//   process.env.NEXT_PUBLIC_SUPABASE_URL!,
+//   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// );
 
 // Parse RSS feed with improved error handling and empty claim filtering
 async function parseRSSFeed(url: string): Promise<RSSItem[]> {
   try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       },
-      timeout: 10000 // 10 second timeout
+      signal: controller.signal
     });
     
     if (!response.ok) {
@@ -248,7 +250,7 @@ function extractTags(title: string, description: string): string[] {
 }
 
 // Calculate trending score
-function calculateTrendingScore(item: RSSItem, allItems: RSSItem[]): number {
+function calculateTrendingScore(item: RSSItem): number {
   const now = new Date();
   const publishDate = new Date(item.pubDate);
   const hoursSincePublish = (now.getTime() - publishDate.getTime()) / (1000 * 60 * 60);
@@ -276,7 +278,7 @@ function processRSSItems(items: RSSItem[]): ProcessedClaim[] {
   return items.map((item, index) => {
     const category = categorizeClaim(item.title, item.description);
     const tags = extractTags(item.title, item.description);
-    const trendingScore = calculateTrendingScore(item, items);
+    const trendingScore = calculateTrendingScore(item);
     
     return {
       id: `claim_${Date.now()}_${index}`,
@@ -296,7 +298,23 @@ function processRSSItems(items: RSSItem[]): ProcessedClaim[] {
 }
 
 // Get dashboard statistics
-function calculateStats(claims: ProcessedClaim[]): any {
+function calculateStats(claims: ProcessedClaim[]): {
+  totalClaims: number;
+  verifiedClaims: number;
+  debunkedClaims: number;
+  pendingClaims: number;
+  lastUpdate: string;
+  trendingTopics: Array<{
+    topic: string;
+    count: number;
+    trend: 'up' | 'stable' | 'down';
+  }>;
+  sourceStats: Array<{
+    source: string;
+    count: number;
+    credibility: number;
+  }>;
+} {
   const now = new Date();
   const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   
@@ -359,7 +377,7 @@ function calculateStats(claims: ProcessedClaim[]): any {
 }
 
 // Main API handler - Simplified without cache
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Authenticate user
     const user = await currentUser();
@@ -413,7 +431,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Refresh RSS feed endpoint - Simplified
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Authenticate user
     const user = await currentUser();

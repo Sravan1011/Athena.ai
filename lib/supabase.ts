@@ -20,8 +20,8 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
   metadata?: {
-    fact_check_result?: any
-    sources?: any[]
+    fact_check_result?: Record<string, unknown>
+    sources?: Record<string, unknown>[]
     confidence_score?: number
   }
   created_at: string

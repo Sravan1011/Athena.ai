@@ -7,44 +7,29 @@ import Image from "next/image"
 import {
   RefreshCw,
   TrendingUp,
-  Clock,
   CheckCircle,
   XCircle,
-  AlertTriangle,
-  Search,
   Filter,
   BookOpen,
   Shield,
   FileText,
   BarChart3,
-  Settings,
-  Bell,
-  ExternalLink,
-  Calendar,
-  Users,
-  Zap,
-  Globe,
-  Target,
-  Activity,
   Eye,
   Share2,
   Bookmark,
-  ChevronRight,
   Loader2,
   AlertCircle,
   Info,
-  Star,
   Flame,
-  TrendingDown,
   ArrowUp,
   ArrowDown,
   Minus
 } from "lucide-react"
-import { cn, formatConfidence, getVerdictIcon, formatProcessingTime } from "@/lib/utils"
+import { cn, formatConfidence, getVerdictIcon } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { ThemeSwitcher } from '@/components/theme-switcher'
-import { useTheme } from '@/components/theme-provider'
+// import { useTheme } from '@/components/theme-provider'
 
 // Types for RSS feed and dashboard data
 interface RSSClaim {
@@ -92,8 +77,7 @@ interface FilterOptions {
 }
 
 export default function DashboardPage() {
-  const { user, isSignedIn } = useUser()
-  const { theme } = useTheme()
+  const { isSignedIn } = useUser()
   const [claims, setClaims] = useState<RSSClaim[]>([])
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -106,7 +90,7 @@ export default function DashboardPage() {
     searchQuery: ""
   })
   const [showFilters, setShowFilters] = useState(false)
-  const [selectedClaims, setSelectedClaims] = useState<string[]>([])
+  // const [selectedClaims, setSelectedClaims] = useState<string[]>([])
   const [savedClaims, setSavedClaims] = useState<Set<string>>(new Set())
   const [showNotification, setShowNotification] = useState<string | null>(null)
 
@@ -130,7 +114,7 @@ export default function DashboardPage() {
   }, [isSignedIn])
 
   // Refresh RSS feed
-  const refreshRSSFeed = async () => {
+  const refreshRSSFeed = useCallback(async () => {
     setIsRefreshing(true)
     try {
       const response = await fetch('/api/dashboard/rss/refresh', {
@@ -144,14 +128,14 @@ export default function DashboardPage() {
     } finally {
       setIsRefreshing(false)
     }
-  }
+  }, [loadDashboardData])
 
   // Load data on component mount
   useEffect(() => {
     if (isSignedIn) {
       loadDashboardData()
     }
-  }, [isSignedIn, loadDashboardData])
+  }, [isSignedIn, loadDashboardData, refreshRSSFeed])
 
   // Auto-refresh every hour
   useEffect(() => {
@@ -162,7 +146,7 @@ export default function DashboardPage() {
     }, 60 * 60 * 1000) // 1 hour
 
     return () => clearInterval(interval)
-  }, [isSignedIn])
+  }, [isSignedIn, refreshRSSFeed])
 
   // Filter claims based on current filters
   const filteredClaims = claims.filter(claim => {

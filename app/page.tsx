@@ -2,17 +2,17 @@
 
 import { UserButton, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, CheckCircle, Shield, Search, Zap, Eye, Target, Users, Sparkles, Globe, Brain, Lightbulb, TrendingUp, Star, Check, X, BarChart3, Bot, Newspaper, AlertTriangle, Menu, ChevronDown, ExternalLink } from "lucide-react";
+import { ArrowRight, Shield, Search, Sparkles, Brain, Lightbulb, TrendingUp, Star, Check, BarChart3, Bot, AlertTriangle, Menu, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useTheme } from '@/components/theme-provider';
-import { redirect } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
+// import { useTheme } from '@/components/theme-provider';
+// import { redirect } from "next/navigation";
 
 export default function Home() {
   const { isLoaded, isSignedIn } = useUser();
-  const { theme } = useTheme();
-  const [currentStat, setCurrentStat] = useState(0);
+  // const { theme } = useTheme();
+  // const [currentStat, setCurrentStat] = useState(0);
   const [typedText, setTypedText] = useState("");
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isClient, setIsClient] = useState(false);
@@ -24,27 +24,27 @@ export default function Home() {
 
   // Removed automatic redirection to dashboard
   
-  const stats = [
-    { number: "99.7%", label: "Accuracy Rate" },
-    { number: "50M+", label: "Claims Verified" },
-    { number: "15sec", label: "Average Response Time" },
-    { number: "200+", label: "Trusted Sources" }
-  ];
+  // const stats = [
+  //   { number: "99.7%", label: "Accuracy Rate" },
+  //   { number: "50M+", label: "Claims Verified" },
+  //   { number: "15sec", label: "Average Response Time" },
+  //   { number: "200+", label: "Trusted Sources" }
+  // ];
   
-  const typewriterTexts = [
+  const typewriterTexts = useMemo(() => [
     "Fight misinformation with AI-powered fact-checking",
     "Verify news articles in seconds",
     "Get evidence-based truth analysis",
     "Combat fake news with reliable sources"
-  ];
+  ], []);
 
-  // Dynamic stats cycling
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentStat((prev) => (prev + 1) % stats.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  // Dynamic stats cycling - commented out as stats are not displayed
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     setCurrentStat((prev) => (prev + 1) % stats.length);
+  //   }, 3000);
+  //   return () => clearInterval(interval);
+  // }, [stats.length]);
 
   // Mouse tracking for interactive elements
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function Home() {
     }, isDeleting ? 50 : 100);
     
     return () => clearInterval(typeTimer);
-  }, []);
+  }, [typewriterTexts]);
 
   return (
     <main className="min-h-screen bg-white relative overflow-hidden">
@@ -437,7 +437,7 @@ export default function Home() {
                 </div>
                 
                 <div className="space-y-2">
-                  {['Reuters', 'AP News', 'BBC'].map((source, index) => (
+                  {['Reuters', 'AP News', 'BBC'].map((source) => (
                     <div key={source} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
                       <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
                         <Check className="w-3 h-3 text-green-600" />
@@ -540,7 +540,7 @@ export default function Home() {
                   <div className="space-y-4">
                     <div className="p-4 bg-gray-50 rounded-xl">
                       <div className="text-sm font-medium text-gray-900 mb-2">Claim:</div>
-                      <div className="text-sm text-gray-700">"New study shows coffee reduces heart disease risk by 50%"</div>
+                      <div className="text-sm text-gray-700">&quot;New study shows coffee reduces heart disease risk by 50%&quot;</div>
                     </div>
                     <div className="p-4 bg-red-50 rounded-xl border border-red-200">
                       <div className="flex items-center space-x-2 mb-2">
@@ -591,7 +591,7 @@ export default function Home() {
                   Condense hours of research with <span className="font-bold">Deep Analysis</span>
                 </h3>
                 <p className="text-gray-600 mb-6 leading-relaxed">
-                  Sift through hundreds of sources, analyze credibility patterns, and create comprehensive fact-checking reports in minutes. It's like having a personalized research agent for every claim.
+                  Sift through hundreds of sources, analyze credibility patterns, and create comprehensive fact-checking reports in minutes. It&apos;s like having a personalized research agent for every claim.
                 </p>
                 <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-3">
                   Learn more

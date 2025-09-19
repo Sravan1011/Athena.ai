@@ -3,9 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useUser, SignOutButton } from "@clerk/nextjs"
 import { useForm } from "react-hook-form"
-import type { TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api'
 import { zodResolver } from "@hookform/resolvers/zod"
-import * as pdfjs from 'pdfjs-dist'
 import { z } from "zod"
 import { useSearchParams } from "next/navigation"
 import {
@@ -27,13 +25,10 @@ import {
   Settings,
   Trash2,
   Upload,
-  UploadCloud,
   X,
   FileText as FileTextIcon,
   File,
-  FileType2,
-  FileCheck2,
-  FileX2
+  FileType2
 } from "lucide-react"
 import { cn, formatConfidence, getVerdictIcon, formatProcessingTime } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -100,7 +95,7 @@ export default function FactCheckPage() {
   const { user, isSignedIn } = useUser()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
-  const [result, setResult] = useState<FactCheckResult | null>(null)
+  const [, setResult] = useState<FactCheckResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
   const [currentInput, setCurrentInput] = useState("")
@@ -108,6 +103,8 @@ export default function FactCheckPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [extractedText, setExtractedText] = useState<string>('')
+  const [, setExtractedClaims] = useState<string[]>([])
+  const [, setExtractingClaims] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null)
@@ -123,7 +120,7 @@ export default function FactCheckPage() {
       }
     : null
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<FactCheckForm>({
+  const { setValue } = useForm<FactCheckForm>({
     resolver: zodResolver(factCheckSchema),
   })
 
@@ -142,6 +139,50 @@ export default function FactCheckPage() {
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
   // Extract text from uploaded file
+  // New function to process PDF and extract claims using the API
+  const processPDFAndExtractClaims = useCallback(async (file: File) => {
+    try {
+      setExtractedText('Processing PDF and extracting claims...');
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/pdf-claims', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process PDF');
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'PDF processing failed');
+      }
+      
+      // Update UI with results
+      setExtractedText(result.pdf.extractedText);
+      setExtractedClaims(result.claims.extracted);
+      
+      // Show success message
+      setExtractedText(prev => prev + `\n\n✅ PDF processed successfully! Found ${result.claims.count} claims.`);
+      
+      return {
+        text: result.pdf.extractedText,
+        claims: result.claims.extracted,
+        isImageBased: result.pdf.isImageBased,
+        pageCount: result.pdf.pageCount
+      };
+      
+    } catch (error) {
+      console.error('PDF processing error:', error);
+      throw error;
+    }
+  }, []);
+
   const extractTextFromFile = async (file: File): Promise<string> => {
     if (file.size > MAX_FILE_SIZE) {
       throw new Error('File size exceeds 5MB limit');
@@ -160,21 +201,44 @@ export default function FactCheckPage() {
           }
 
           try {
-            // Use the CDN version of the worker
-            pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+            // Dynamic import of PDF.js to avoid SSR issues
+            const pdfjs = await import('pdfjs-dist');
+            
+            // Use the local worker from our API route
+            pdfjs.GlobalWorkerOptions.workerSrc = '/api/pdf-worker';
 
-            // Load the PDF document
-            const loadingTask = pdfjs.getDocument(target.result as ArrayBuffer);
+            // Load the PDF document with better error handling
+            const loadingTask = pdfjs.getDocument({
+              data: target.result as ArrayBuffer,
+              useSystemFonts: true,
+              disableFontFace: false,
+              disableRange: false,
+              disableStream: false,
+              disableAutoFetch: false,
+              cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+              cMapPacked: true,
+              standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`
+            });
+            
             const pdf = await loadingTask.promise;
             
             let text = ''
+            let hasText = false
+            
             for (let i = 1; i <= pdf.numPages; i++) {
               const page = await pdf.getPage(i);
               const content = await page.getTextContent();
               const strings = content.items
-                .filter((item): item is TextItem => 'str' in item && typeof (item as TextItem).str === 'string')
-                .map((item: TextItem) => item.str);
-              text += strings.join(' ') + '\n\n';
+                .filter((item: unknown) => 
+                  typeof item === 'object' && item !== null && 'str' in item && typeof (item as { str: unknown }).str === 'string'
+                )
+                .map((item: unknown) => (item as { str: string }).str);
+              
+              const pageText = strings.join(' ').trim();
+              if (pageText) {
+                hasText = true;
+                text += pageText + '\n\n';
+              }
 
               // Update progress in state if needed
               setExtractedText(`Extracting text... Page ${i} of ${pdf.numPages}`);
@@ -182,10 +246,32 @@ export default function FactCheckPage() {
               // Add a small delay to prevent UI freeze
               await new Promise(resolve => setTimeout(resolve, 0));
             }
-            resolve(text.trim());
+            
+            // If no text was extracted, the PDF might be image-based (scanned)
+            if (!hasText || text.trim().length < 50) {
+              console.log('PDF appears to be image-based or has minimal text. Attempting OCR...');
+              setExtractedText('PDF appears to be scanned. OCR processing not available in this demo. Please use a text-based PDF.');
+              resolve('This PDF appears to be scanned or image-based. For full OCR support, please use a text-based PDF or convert the document to text format.');
+            } else {
+              resolve(text.trim());
+            }
           } catch (error) {
             console.error('Error extracting text from PDF:', error);
-            reject(new Error('Failed to process PDF. The file may be corrupted or password protected.'));
+            
+            // Provide more specific error messages
+            if (error instanceof Error) {
+              if (error.message.includes('Invalid PDF')) {
+                reject(new Error('Invalid PDF file. Please ensure the file is a valid PDF document.'));
+              } else if (error.message.includes('password')) {
+                reject(new Error('PDF is password protected. Please provide an unprotected PDF.'));
+              } else if (error.message.includes('worker')) {
+                reject(new Error('PDF processing worker failed to load. Please try again.'));
+              } else {
+                reject(new Error(`PDF processing failed: ${error.message}`));
+              }
+            } else {
+              reject(new Error('Failed to process PDF. The file may be corrupted or in an unsupported format.'));
+            }
           }
         };
         
@@ -204,7 +290,7 @@ export default function FactCheckPage() {
               reject(new Error('Failed to read file'));
               return;
             }
-            // @ts-ignore - docx types
+            // @ts-expect-error - docx types
             const { extractText } = await import('mammoth')
             const result = await extractText({ arrayBuffer: target.result })
             resolve(result.value)
@@ -249,6 +335,27 @@ export default function FactCheckPage() {
     setIsUploading(true);
     
     try {
+      if (file.type === 'application/pdf') {
+        // Use the new PDF processing pipeline
+        setExtractedText('Processing PDF and extracting claims...');
+        const result = await processPDFAndExtractClaims(file);
+        
+        // The claims are already extracted and set in the function
+        setExtractedText(result.text);
+        setExtractedClaims(result.claims);
+        setExtractingClaims(false);
+        
+        // If we have claims, we can optionally fact-check the first one
+        if (result.claims.length > 0) {
+          setCurrentInput(result.claims[0]);
+          // Don't auto-submit, let user choose which claim to fact-check
+        }
+        
+        setIsUploading(false);
+        return;
+      }
+      
+      // For other file types, use the original processing
       const formData = new FormData();
       formData.append('file', file);
 

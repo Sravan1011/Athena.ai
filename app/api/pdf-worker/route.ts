@@ -8,7 +8,7 @@ export async function GET() {
     const workerPath = join(process.cwd(), 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.mjs');
     const workerContent = await readFile(workerPath);
 
-    return new NextResponse(workerContent, {
+    return new NextResponse(new Uint8Array(workerContent), {
       status: 200,
       headers: {
         'Content-Type': 'application/javascript',
@@ -27,5 +27,5 @@ export async function GET() {
   }
 }
 
-// This tells Next.js to use the edge runtime
-export const runtime = 'edge';
+// This tells Next.js to use the node runtime for file system access
+export const runtime = 'nodejs';

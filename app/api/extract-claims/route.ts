@@ -68,7 +68,7 @@ export async function POST(req: Request) {
         if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
           claims = parsed;
         }
-      } catch (e) {
+      } catch {
         // If direct JSON parse fails, try to extract JSON array from the response
         const jsonMatch = claimsText.match(/\[([\s\S]*?)\]/);
         if (jsonMatch) {
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
             if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
               claims = parsed;
             }
-          } catch (e) {
+          } catch {
             console.log('Failed to parse JSON array from response');
           }
         }
