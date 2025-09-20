@@ -1,6 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
+// Helper function for Gemini API calls with retry logic
+async function callGeminiAPI(prompt: string): Promise<string> {
+  let response;
+  let retries = 0;
+  const maxRetries = 3;
+  
+  while (retries < maxRetries) {
+    try {
+      response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + process.env.GEMINI_API_KEY, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }]
+        })
+      });
+
+      if (response.ok) {
+        break;
+      }
+      
+      if (response.status === 429) {
+        // Rate limit - wait longer before retry
+        const waitTime = Math.pow(2, retries) * 1000; // Exponential backoff
+        console.log(`Rate limited, waiting ${waitTime}ms before retry ${retries + 1}`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        retries++;
+        continue;
+      }
+      
+      if (response.status >= 500) {
+        // Server error - retry with backoff
+        const waitTime = Math.pow(2, retries) * 1000;
+        console.log(`Server error ${response.status}, waiting ${waitTime}ms before retry ${retries + 1}`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        retries++;
+        continue;
+      }
+      
+      // Other errors - don't retry
+      throw new Error(`Gemini API error: ${response.status}`);
+      
+    } catch (error) {
+      if (retries === maxRetries - 1) {
+        throw error;
+      }
+      retries++;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  if (!response || !response.ok) {
+    throw new Error(`Gemini API error: ${response?.status || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Error generating response';
+}
+
 // Types for the enhanced fact-check API
 interface EnhancedFactCheckRequest {
   claim: string;
@@ -310,26 +374,7 @@ async function generateFactCheckQueries(claim: string): Promise<string[]> {
     `\n\nClaim to fact-check: ${claim}`;
 
   try {
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + process.env.GEMINI_API_KEY, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }]
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const generatedQuery = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().replace(/['"]/g, '') || '';
+    const generatedQuery = (await callGeminiAPI(prompt)).trim().replace(/['"]/g, '');
     
     // Generate multiple targeted queries for comprehensive coverage
     const baseQuery = generatedQuery || `${claim} fact check`;
@@ -434,26 +479,7 @@ async function analyzeEvidence(claim: string, searchResults: { results: Array<{ 
     .replace('{search_results}', formattedResults.join('\n'));
 
   try {
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + process.env.GEMINI_API_KEY, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }]
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Error generating fact-check analysis';
+    return await callGeminiAPI(prompt);
   } catch (error) {
     console.error('Error generating fact-check analysis:', error);
     return `Error generating fact-check analysis: ${error}`;

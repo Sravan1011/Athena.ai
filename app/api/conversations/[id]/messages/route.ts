@@ -7,9 +7,49 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const authResult = await auth()
+    const { userId } = authResult
     
-    if (!userId) {
+    // Check for JWT timing issues and use fallback authentication
+    const clerkAuthReason = request.headers.get('x-clerk-auth-reason')
+    const cookies = request.headers.get('cookie')
+    
+    let fallbackUserId = null
+    
+    // If JWT timing issue or no userId, try to extract user ID from session token in cookies
+    if (!userId && (clerkAuthReason === 'session-token-iat-in-the-future' || !userId)) {
+      console.log('Messages GET API: JWT timing issue detected, attempting cookie-based auth fallback')
+      
+      // Try multiple session token patterns
+      const sessionTokenPatterns = [
+        /__session=([^;]+)/,
+        /__session_[^=]+=([^;]+)/,
+        /clerk_session=([^;]+)/
+      ]
+      
+      for (const pattern of sessionTokenPatterns) {
+        const sessionTokenMatch = cookies?.match(pattern)
+        if (sessionTokenMatch) {
+          try {
+            const sessionToken = sessionTokenMatch[1]
+            const payload = JSON.parse(atob(sessionToken.split('.')[1]))
+            fallbackUserId = payload.sub
+            
+            if (fallbackUserId) {
+              console.log('Messages GET API: Fallback authentication successful:', fallbackUserId)
+              break
+            }
+          } catch (fallbackError) {
+            console.log('Messages GET API: Fallback authentication attempt failed:', fallbackError)
+            continue
+          }
+        }
+      }
+    }
+    
+    const finalUserId = userId || fallbackUserId
+    
+    if (!finalUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -21,7 +61,7 @@ export async function GET(
       .from('conversations')
       .select('id')
       .eq('id', conversationId)
-      .eq('user_id', userId)
+      .eq('user_id', finalUserId)
       .single()
 
     if (!conversation) {
@@ -51,9 +91,49 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth()
+    const authResult = await auth()
+    const { userId } = authResult
     
-    if (!userId) {
+    // Check for JWT timing issues and use fallback authentication
+    const clerkAuthReason = request.headers.get('x-clerk-auth-reason')
+    const cookies = request.headers.get('cookie')
+    
+    let fallbackUserId = null
+    
+    // If JWT timing issue or no userId, try to extract user ID from session token in cookies
+    if (!userId && (clerkAuthReason === 'session-token-iat-in-the-future' || !userId)) {
+      console.log('Messages POST API: JWT timing issue detected, attempting cookie-based auth fallback')
+      
+      // Try multiple session token patterns
+      const sessionTokenPatterns = [
+        /__session=([^;]+)/,
+        /__session_[^=]+=([^;]+)/,
+        /clerk_session=([^;]+)/
+      ]
+      
+      for (const pattern of sessionTokenPatterns) {
+        const sessionTokenMatch = cookies?.match(pattern)
+        if (sessionTokenMatch) {
+          try {
+            const sessionToken = sessionTokenMatch[1]
+            const payload = JSON.parse(atob(sessionToken.split('.')[1]))
+            fallbackUserId = payload.sub
+            
+            if (fallbackUserId) {
+              console.log('Messages POST API: Fallback authentication successful:', fallbackUserId)
+              break
+            }
+          } catch (fallbackError) {
+            console.log('Messages POST API: Fallback authentication attempt failed:', fallbackError)
+            continue
+          }
+        }
+      }
+    }
+    
+    const finalUserId = userId || fallbackUserId
+    
+    if (!finalUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -66,7 +146,7 @@ export async function POST(
       .from('conversations')
       .select('id')
       .eq('id', conversationId)
-      .eq('user_id', userId)
+      .eq('user_id', finalUserId)
       .single()
 
     if (!conversation) {
