@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,22 +14,53 @@ interface RSSArticle {
   source: string;
 }
 
+// Define interface for the article data from API
+interface ArticleData {
+  title: string;
+  description: string;
+  link: string;
+  pubDate: string;
+  source: string;
+}
+
 export function RSSFeedSection() {
   const [articles, setArticles] = useState<RSSArticle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchRSSFeed = async () => {
+  const extractImageFromContent = useCallback((content: string): string | null => {
+    if (!content) return null;
+    
+    // Try to extract image from HTML content
+    const imgRegex = /<img[^>]+src="([^">]+)"/;
+    const match = content.match(imgRegex);
+    
+    if (match?.[1]) {
+      return match[1];
+    }
+    
+    // Try to find image URLs in text
+    const urlRegex = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp))/i;
+    const urlMatch = content.match(urlRegex);
+    
+    return urlMatch?.[1] || null;
+  }, []);
+
+  const fetchRSSFeed = useCallback(async () => {
     try {
       setIsRefreshing(true);
       const response = await fetch('/api/dashboard/rss');
       const data = await response.json();
       
-      if (data.success && data.articles) {
+      if (data?.success && Array.isArray(data.articles)) {
         // Get top 3 articles and extract images
-        const topArticles = data.articles.slice(0, 3).map((article: any) => ({
-          ...article,
+        const topArticles = data.articles.slice(0, 3).map((article: ArticleData) => ({
+          title: article.title || '',
+          description: article.description || '',
+          link: article.link || '#',
+          pubDate: article.pubDate || new Date().toISOString(),
+          source: article.source || 'Unknown',
           imageUrl: extractImageFromContent(article.description) || '/alt-placeholder.jpg'
         }));
         setArticles(topArticles);
@@ -41,26 +72,7 @@ export function RSSFeedSection() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  };
-
-  // Extract image URL from article content/description
-  const extractImageFromContent = (content: string): string | null => {
-    if (!content) return null;
-    
-    // Try to extract image from HTML content
-    const imgRegex = /<img[^>]+src="([^">]+)"/;
-    const match = content.match(imgRegex);
-    
-    if (match && match[1]) {
-      return match[1];
-    }
-    
-    // Try to find image URLs in text
-    const urlRegex = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp))/i;
-    const urlMatch = content.match(urlRegex);
-    
-    return urlMatch ? urlMatch[1] : null;
-  };
+  }, [extractImageFromContent]);
 
   // Auto-refresh every 15 minutes
   useEffect(() => {
@@ -71,7 +83,7 @@ export function RSSFeedSection() {
     }, 15 * 60 * 1000); // 15 minutes
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchRSSFeed]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);

@@ -188,17 +188,22 @@ async function parseRSSFeed(url: string): Promise<RSSItem[]> {
     
     console.log(`Parsed ${items.length} valid items from ${url}`);
     return items;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Cache this failed feed to avoid repeated attempts
     FAILED_FEEDS_CACHE.set(url, Date.now());
     
-    if (error.name === 'AbortError') {
-      console.warn(`RSS feed ${url} timed out after 6 seconds, skipping...`);
-    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-      console.warn(`RSS feed ${url} is unreachable, skipping...`);
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        console.warn(`RSS feed ${url} timed out after 6 seconds, skipping...`);
+      } else if ('code' in error && (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED')) {
+        console.warn(`RSS feed ${url} is unreachable, skipping...`);
+      } else {
+        console.warn(`RSS feed ${url} failed:`, error.message);
+      }
     } else {
-      console.warn(`RSS feed ${url} failed:`, error.message || error);
+      console.warn(`RSS feed ${url} failed with unknown error`);
     }
+    
     return [];
   }
 }
