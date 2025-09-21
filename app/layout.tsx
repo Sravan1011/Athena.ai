@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Cinzel, Cinzel_Decorative, Uncial_Antiqua } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from '@clerk/nextjs';
 import ClientBody from './ClientBody';
@@ -9,6 +9,26 @@ const inter = Inter({
   subsets: ["latin"],
   display: 'swap',
   variable: '--font-inter',
+});
+
+const cinzel = Cinzel({
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-cinzel',
+});
+
+const cinzelDecorative = Cinzel_Decorative({
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-cinzel-decorative',
+  weight: ['400', '700'],
+});
+
+const uncialAntiqua = Uncial_Antiqua({
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-uncial',
+  weight: '400',
 });
 
 export const metadata: Metadata = {
@@ -35,7 +55,7 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en" suppressHydrationWarning className={`${inter.variable} antialiased`}>
+      <html lang="en" suppressHydrationWarning className={`${inter.variable} ${cinzel.variable} ${cinzelDecorative.variable} ${uncialAntiqua.variable} antialiased`}>
         <ClientBody className="font-inter">
           <ThemeProvider>
             {children}

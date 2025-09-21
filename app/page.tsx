@@ -2,661 +2,681 @@
 
 import { UserButton, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Shield, Search, Sparkles, Brain, Lightbulb, TrendingUp, Star, Check, BarChart3, Bot, AlertTriangle, Menu, ChevronDown } from "lucide-react";
-import Image from "next/image";
+import { Shield, Search, Brain, Lightbulb, Check, Eye, BookOpen, Scale, Zap, Play, Users, Clock, Target } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
-// import { useTheme } from '@/components/theme-provider';
-// import { redirect } from "next/navigation";
+import { useRef } from "react";
+import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import { TypeAnimation } from 'react-type-animation';
+import { RSSFeedSection } from "@/components/RSSFeedSection";
+
 
 export default function Home() {
   const { isLoaded, isSignedIn } = useUser();
-  // const { theme } = useTheme();
-  // const [currentStat, setCurrentStat] = useState(0);
-  const [typedText, setTypedText] = useState("");
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isClient, setIsClient] = useState(false);
-  const [isDemo, setIsDemo] = useState(false);
-  const [demoText, setDemoText] = useState("");
-  const [analysisStep, setAnalysisStep] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [featuresDropdownOpen, setFeaturesDropdownOpen] = useState(false);
-
-  // Removed automatic redirection to dashboard
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll();
   
-  // const stats = [
-  //   { number: "99.7%", label: "Accuracy Rate" },
-  //   { number: "50M+", label: "Claims Verified" },
-  //   { number: "15sec", label: "Average Response Time" },
-  //   { number: "200+", label: "Trusted Sources" }
-  // ];
-  
-  const typewriterTexts = useMemo(() => [
-    "Fight misinformation with AI-powered fact-checking",
-    "Verify news articles in seconds",
-    "Get evidence-based truth analysis",
-    "Combat fake news with reliable sources"
-  ], []);
+  // Parallax transforms - reduced for better performance
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, -50]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.4], [1, 0]);
 
-  // Dynamic stats cycling - commented out as stats are not displayed
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     setCurrentStat((prev) => (prev + 1) % stats.length);
-  //   }, 3000);
-  //   return () => clearInterval(interval);
-  // }, [stats.length]);
+  // Section component with intersection observer
+  const Section = ({ children, className = "", delay = 0 }: { children: React.ReactNode, className?: string, delay?: number }) => {
+    const ref = useRef(null);
+    const isInView = useInView(ref, { once: true, margin: "-100px" });
 
-  // Mouse tracking for interactive elements
-  useEffect(() => {
-    setIsClient(true);
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-    
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  // Demo analysis simulation
-  useEffect(() => {
-    if (isDemo) {
-      const steps = [
-        "Analyzing text content...",
-        "Cross-referencing with trusted sources...",
-        "Evaluating credibility score...",
-        "Analysis complete!"
-      ];
-      
-      let stepIndex = 0;
-      const demoTimer = setInterval(() => {
-        if (stepIndex < steps.length) {
-          setDemoText(steps[stepIndex]);
-          setAnalysisStep(stepIndex);
-          stepIndex++;
-        } else {
-          setIsDemo(false);
-          setAnalysisStep(0);
-          clearInterval(demoTimer);
-        }
-      }, 1500);
-      
-      return () => clearInterval(demoTimer);
-    }
-  }, [isDemo]);
-
-  // Typewriter effect
-  useEffect(() => {
-    let currentTextIndex = 0;
-    let currentCharIndex = 0;
-    let isDeleting = false;
-    
-    const typeTimer = setInterval(() => {
-      const currentFullText = typewriterTexts[currentTextIndex];
-      
-      if (!isDeleting) {
-        setTypedText(currentFullText.substring(0, currentCharIndex + 1));
-        currentCharIndex++;
-        
-        if (currentCharIndex === currentFullText.length) {
-          setTimeout(() => { isDeleting = true; }, 2000);
-        }
-      } else {
-        setTypedText(currentFullText.substring(0, currentCharIndex - 1));
-        currentCharIndex--;
-        
-        if (currentCharIndex === 0) {
-          isDeleting = false;
-          currentTextIndex = (currentTextIndex + 1) % typewriterTexts.length;
-        }
-      }
-    }, isDeleting ? 50 : 100);
-    
-    return () => clearInterval(typeTimer);
-  }, [typewriterTexts]);
+    return (
+      <motion.div
+        ref={ref}
+        initial={{ opacity: 0, y: 50 }}
+        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+        transition={{ duration: 0.6, delay, ease: "easeOut" }}
+        className={className}
+      >
+        {children}
+      </motion.div>
+    );
+  };
 
   return (
-    <main className="min-h-screen bg-white relative overflow-hidden">
-      {/* Enhanced Animated Background */}
-      {isClient && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {/* Interactive Floating Particles */}
-          {[...Array(12)].map((_, i) => {
-          const delay = i * 0.5;
-          // Use consistent sizes based on index to avoid hydration mismatch
-          const sizes = [8, 12, 6, 10, 14, 7, 9, 11, 5, 13, 8, 10];
-          const size = sizes[i];
-          const colors = ['bg-blue-200', 'bg-green-200', 'bg-purple-200', 'bg-yellow-200', 'bg-pink-200', 'bg-indigo-200'];
-          const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500;
-          const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 500;
-          
-          // Use consistent positioning based on index to avoid hydration mismatch
-          const positions = [
-            { left: '10%', top: '20%' }, { left: '80%', top: '15%' }, { left: '60%', top: '60%' },
-            { left: '20%', top: '70%' }, { left: '90%', top: '50%' }, { left: '40%', top: '30%' },
-            { left: '70%', top: '80%' }, { left: '15%', top: '45%' }, { left: '85%', top: '75%' },
-            { left: '50%', top: '25%' }, { left: '30%', top: '85%' }, { left: '75%', top: '35%' }
-          ];
-          
-          const durations = [3.5, 4.2, 3.8, 4.5, 3.2, 4.0, 3.7, 4.3, 3.9, 4.1, 3.4, 3.6];
-          
-          return (
-            <div
-              key={i}
-              className={`absolute ${colors[i % colors.length]} rounded-full animate-float opacity-60`}
+    <main ref={containerRef} className="min-h-screen aged-paper relative overflow-hidden">
+      {/* Vintage paper overlay for entire page */}
+      <div className="fixed inset-0 vintage-paper-overlay pointer-events-none z-0"></div>
+      {/* Animated Background Pattern */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 vintage-texture opacity-15"></div>
+        <div className="absolute inset-0 sherlock-background opacity-20"></div>
+        <div className="absolute inset-0 magnifying-glass-pattern opacity-10"></div>
+        <div className="absolute inset-0 detective-pattern opacity-8"></div>
+        <div className="absolute inset-0 pipe-pattern opacity-5"></div>
+        <div className="absolute inset-0 vintage-book-pattern opacity-12"></div>
+        <div 
+          className="absolute inset-0 opacity-20"
               style={{
-                width: `${size}px`,
-                height: `${size}px`,
-                left: positions[i].left,
-                top: positions[i].top,
-                animationDelay: `${delay}s`,
-                animationDuration: `${durations[i]}s`,
-                transform: `translate(${(mousePosition.x - centerX) * 0.01}px, ${(mousePosition.y - centerY) * 0.01}px)`
-              }}
-            />
-          );
-        })}
-
-        {/* Dynamic SVG Illustrations */}
-        <svg className="absolute top-20 left-10 w-24 h-24 text-blue-300 opacity-30" viewBox="0 0 100 100">
-          <path d="M20,50 Q50,20 80,50 Q50,80 20,50" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="8,4">
-            <animate attributeName="stroke-dashoffset" values="0;12" dur="3s" repeatCount="indefinite"/>
-            <animateTransform attributeName="transform" type="rotate" values="0 50 50;360 50 50" dur="20s" repeatCount="indefinite"/>
-          </path>
-          <circle cx="50" cy="50" r="3" fill="currentColor">
-            <animate attributeName="r" values="3;6;3" dur="2s" repeatCount="indefinite"/>
-          </circle>
-        </svg>
-
-        <svg className="absolute top-1/3 right-16 w-32 h-32 text-green-300 opacity-25" viewBox="0 0 100 100">
-          <polygon points="50,5 20,95 80,95" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="6,3">
-            <animate attributeName="stroke-dashoffset" values="0;9" dur="4s" repeatCount="indefinite"/>
-          </polygon>
-          <path d="M35,70 Q50,60 65,70" stroke="currentColor" strokeWidth="1.5" fill="none">
-            <animate attributeName="d" values="M35,70 Q50,60 65,70;M35,70 Q50,50 65,70;M35,70 Q50,60 65,70" dur="3s" repeatCount="indefinite"/>
-          </path>
-        </svg>
-
-        <svg className="absolute bottom-1/4 left-1/4 w-28 h-28 text-purple-300 opacity-35" viewBox="0 0 100 100">
-          <rect x="25" y="25" width="50" height="50" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="5,5" rx="8">
-            <animateTransform attributeName="transform" type="rotate" values="0 50 50;180 50 50;360 50 50" dur="15s" repeatCount="indefinite"/>
-            <animate attributeName="stroke-dashoffset" values="0;10" dur="2s" repeatCount="indefinite"/>
-          </rect>
-          <circle cx="50" cy="50" r="8" stroke="currentColor" strokeWidth="1" fill="none">
-            <animate attributeName="r" values="8;12;8" dur="2.5s" repeatCount="indefinite"/>
-          </circle>
-        </svg>
-
-        <svg className="absolute bottom-20 right-20 w-36 h-36 text-yellow-300 opacity-25" viewBox="0 0 100 100">
-          <path d="M50,10 L90,90 L10,90 Z" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="8,4">
-            <animate attributeName="stroke-dashoffset" values="0;12" dur="3.5s" repeatCount="indefinite"/>
-          </path>
-          <path d="M30,75 Q50,60 70,75" stroke="currentColor" strokeWidth="1.5" fill="none">
-            <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite"/>
-          </path>
-        </svg>
-
-        {/* Floating Icon Doodles */}
-        <div className="absolute top-1/4 left-1/6 animate-float" style={{animationDelay: '1s'}}>
-          <Brain className="w-8 h-8 text-blue-400 opacity-40" />
-        </div>
-        <div className="absolute top-2/3 right-1/5 animate-float" style={{animationDelay: '2s'}}>
-          <Lightbulb className="w-6 h-6 text-yellow-400 opacity-40" />
-        </div>
-        <div className="absolute top-1/2 left-1/12 animate-float" style={{animationDelay: '0.5s'}}>
-          <Star className="w-5 h-5 text-purple-400 opacity-40" />
-        </div>
-        <div className="absolute bottom-1/3 right-1/6 animate-float" style={{animationDelay: '1.5s'}}>
-          <TrendingUp className="w-7 h-7 text-green-400 opacity-40" />
-        </div>
+            background: `radial-gradient(1200px circle at 50% 50%, rgba(139, 87, 42, 0.02), transparent 70%)`
+          }}
+        />
       </div>
-      )}
 
-      {/* Gemini-Style Navigation */}
-      <nav className="bg-white sticky top-0 z-50 border-b border-gray-100">
-        <div className="w-full px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo Section - Left */}
-            <div className="flex items-center">
+      {/* Navigation */}
+      <motion.nav 
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="z-50 vintage-paper-nav fixed top-0 w-full"
+      >
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex justify-between items-center">
               <Link href="/" className="flex items-center space-x-3 group">
-                <div className="w-8 h-8 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg logo-container group-hover:scale-105 transition-all duration-300">
-                  <Image 
-                    src="/clean-logo.svg" 
-                    alt="ClaimAI Logo" 
-                    width={24} 
-                    height={24}
-                    className="w-6 h-6 object-contain logo-image"
-                    priority
-                  />
-                </div>
-                <span className="text-xl font-medium text-gray-900 tracking-tight">ClaimAI</span>
+              <motion.div 
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                className="w-10 h-10 sherlock-gradient rounded-lg flex items-center justify-center shadow-lg border-2 border-[#654321]"
+              >
+                <Eye className="w-6 h-6 text-[#f8f5f0]" />
+              </motion.div>
+              <span className="text-xl font-bold bg-gradient-to-r from-[#654321] to-[#8b572a] bg-clip-text text-transparent font-serif">
+                Athena.ai
+              </span>
               </Link>
-            </div>
             
-            {/* Center Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <Link href="#pricing" className="text-sm text-gray-700 hover:text-gray-900 transition-colors font-medium">
-                Free for Students
+              <Link href="#features" className="text-[#654321] hover:text-[#8b572a] transition-colors font-serif font-medium">
+                Features
               </Link>
-              
-              {/* Features Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setFeaturesDropdownOpen(!featuresDropdownOpen)}
-                  className="flex items-center space-x-1 text-sm text-gray-700 hover:text-gray-900 transition-colors font-medium"
-                >
-                  <span>What ClaimAI Can Do</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${featuresDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {featuresDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
-                    <Link href="#features" className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 transition-colors" onClick={() => setFeaturesDropdownOpen(false)}>
-                      <Search className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <div className="font-medium text-gray-900">Real-time Verification</div>
-                        <div className="text-xs text-gray-500">Instant fact-checking results</div>
-                      </div>
+              <Link href="#how-it-works" className="text-[#654321] hover:text-[#8b572a] transition-colors font-serif font-medium">
+                How it Works
                     </Link>
-                    <Link href="#features" className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 transition-colors" onClick={() => setFeaturesDropdownOpen(false)}>
-                      <Shield className="w-5 h-5 text-green-600" />
-                      <div>
-                        <div className="font-medium text-gray-900">Multi-Source Analysis</div>
-                        <div className="text-xs text-gray-500">200+ credible sources</div>
-                      </div>
-                    </Link>
-                    <Link href="#features" className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 transition-colors" onClick={() => setFeaturesDropdownOpen(false)}>
-                      <Brain className="w-5 h-5 text-purple-600" />
-                      <div>
-                        <div className="font-medium text-gray-900">AI Context Understanding</div>
-                        <div className="text-xs text-gray-500">Advanced NLP analysis</div>
-                      </div>
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              <Link href="#pricing" className="text-sm text-gray-700 hover:text-gray-900 transition-colors font-medium">
-                Subscriptions
+              <Link href="#testimonials" className="text-[#654321] hover:text-[#8b572a] transition-colors font-serif font-medium">
+                Testimonials
               </Link>
-              
-              {/* About Dropdown */}
-              <div className="relative">
-                <button className="flex items-center space-x-1 text-sm text-gray-700 hover:text-gray-900 transition-colors font-medium">
-                  <span>About ClaimAI</span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-              </div>
             </div>
 
-            {/* Right Side - CTA Button */}
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
               {isLoaded && (
                 <>
                   {isSignedIn ? (
                     <div className="flex items-center space-x-3">
-                      <Button asChild variant="outline" size="sm" className="hidden md:flex">
+                      <Button asChild variant="outline" size="sm" className="vintage-paper-card border-[#654321] text-[#654321] hover:bg-[#f4f1e8] font-serif">
                         <Link href="/dashboard">Dashboard</Link>
                       </Button>
                       <UserButton afterSignOutUrl="/" />
                     </div>
                   ) : (
-                    <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2 text-sm font-medium">
-                      <Link href="/sign-up">Try ClaimAI</Link>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button asChild className="vintage-paper-button text-[#f8f5f0] shadow-lg font-serif">
+                        <Link href="/sign-up">Begin Investigation</Link>
                     </Button>
+                    </motion.div>
                   )}
                 </>
               )}
             </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-            </div>
           </div>
-
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden border-t border-gray-100 py-4 space-y-2">
-              <Link href="#pricing" className="block px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors font-medium" onClick={() => setMobileMenuOpen(false)}>
-                Free for Students
-              </Link>
-              <Link href="#features" className="block px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors font-medium" onClick={() => setMobileMenuOpen(false)}>
-                What ClaimAI Can Do
-              </Link>
-              <Link href="#pricing" className="block px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors font-medium" onClick={() => setMobileMenuOpen(false)}>
-                Subscriptions
-              </Link>
-              <Link href="#about" className="block px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors font-medium" onClick={() => setMobileMenuOpen(false)}>
-                About ClaimAI
-              </Link>
-              
-              {isLoaded && !isSignedIn && (
-                <div className="border-t border-gray-100 pt-4 px-4">
-                  <Button asChild className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => setMobileMenuOpen(false)}>
-                    <Link href="/sign-up">Try ClaimAI</Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
-      </nav>
+      </motion.nav>
 
-      {/* Gemini-Style Hero Section */}
-      <section className="pt-20 pb-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            {/* Badge */}
-            <div className="inline-flex items-center space-x-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-8">
-              <Sparkles className="w-4 h-4" />
-              <span>Meet the everyday AI fact-checker</span>
+      {/* Hero Section */}
+      <motion.section 
+        style={{ y: heroY, opacity: heroOpacity }}
+        className="relative z-10 pt-20 pb-32 vintage-paper-section"
+      >
+        <div className="max-w-6xl mx-auto px-6 better-alignment">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mb-8"
+          >
+            <span className="inline-flex items-center space-x-2 bg-[#f4f1e8] text-[#8b572a] px-4 py-2 rounded-full text-sm font-medium border border-[#d4af8c] sketch-texture">
+              <Eye className="w-4 h-4" />
+              <span>Uncover truth with detective precision</span>
+            </span>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="text-7xl md:text-8xl font-bold mb-8 leading-tight better-alignment"
+          >
+            <div className="bg-gradient-to-r from-[#654321] via-[#8b572a] to-[#a06535] bg-clip-text text-transparent font-medieval-decorative text-shadow-vintage">
+              <TypeAnimation
+                sequence={[
+                  'Investigate',
+                  2000,
+                  'Analyze',
+                  2000,
+                  'Verify',
+                  2000,
+                  'Discover',
+                  2000,
+                  'Investigate',
+                  2000,
+                ]}
+                wrapper="span"
+                speed={50}
+                repeat={Infinity}
+              />
             </div>
-            
-            {/* Main Headline */}
-            <h1 className="text-6xl lg:text-8xl font-normal text-gray-900 leading-tight mb-8 tracking-tight">
-              Stop <span className="font-bold">fake news</span>
-            </h1>
-            
-            {/* Subheading with Typewriter */}
-            <div className="max-w-3xl mx-auto mb-12">
-              <p className="text-xl lg:text-2xl text-gray-600 leading-relaxed min-h-[2.5rem]">
-                {typedText}
-                <span className="animate-pulse text-blue-600">|</span>
-              </p>
-            </div>
-            
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+            <br />
+            <span className="bg-gradient-to-r from-[#8b572a] via-[#a06535] to-[#d4af8c] bg-clip-text text-transparent font-medieval-decorative text-shadow-vintage">
+              with AI
+            </span>
+          </motion.div>
+
+          <motion.p 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="text-xl text-[#654321] max-w-3xl mx-auto mb-12 leading-relaxed font-serif better-alignment text-shadow-vintage"
+          >
+            Like Sherlock Holmes with a digital magnifying glass. Uncover truth, 
+            debunk misinformation, and solve the mysteries of our information age.
+          </motion.p>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16"
+          >
               {isSignedIn ? (
-                <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-4 text-lg font-medium group shadow-lg">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button asChild size="lg" className="vintage-paper-button text-[#654321] shadow-xl text-lg px-8 py-4 font-medieval">
                   <Link href="/fact-check">
-                    <Search className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-                    Start fact checking
+                    <Search className="mr-2 h-5 w-5" />
+                    Start Investigating
                   </Link>
                 </Button>
+              </motion.div>
               ) : (
-                <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-4 text-lg font-medium group shadow-lg">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button asChild size="lg" className="vintage-paper-button text-[#654321] shadow-xl text-lg px-8 py-4 font-medieval">
                   <Link href="/sign-up">
-                    Try it now
+                    Begin Investigation
                   </Link>
                 </Button>
+              </motion.div>
               )}
-            </div>
+            
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center space-x-2 px-6 py-3 text-[#654321] hover:text-[#8b572a] transition-colors font-medieval"
+            >
+              <div className="w-10 h-10 vintage-paper-card rounded-full flex items-center justify-center shadow-lg">
+                <Play className="w-4 h-4 ml-0.5 text-[#654321]" />
+                  </div>
+              <span>Watch the demo</span>
+            </motion.button>
+          </motion.div>
 
-            {/* Demo Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {/* Real-time Analysis Card */}
-              <div className="bg-white rounded-3xl p-8 border border-gray-200 hover:shadow-xl transition-all duration-500 group cursor-pointer" onClick={() => setIsDemo(true)}>
-                <div className="mb-6">
-                  <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Search className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Ask complex questions</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">
-                    Want to verify a breaking news story or understand misinformation patterns? ClaimAI analyzes claims instantly.
-                  </p>
+          {/* Interactive Demo Preview */}
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 1, delay: 1 }}
+            className="relative max-w-4xl mx-auto better-alignment"
+          >
+            <div className="vintage-paper-card rounded-3xl shadow-2xl p-8">
+              <div className="flex items-center space-x-2 mb-6">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-[#8b572a] rounded-full border border-[#654321]"></div>
+                  <div className="w-3 h-3 bg-[#a06535] rounded-full border border-[#654321]"></div>
+                  <div className="w-3 h-3 bg-[#d4af8c] rounded-full border border-[#654321]"></div>
                 </div>
-                
-                {/* Interactive Demo */}
-                {isDemo && (
-                  <div className="bg-gray-50 rounded-2xl p-4 animate-fade-in-up">
-                    <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                      <Bot className="w-4 h-4 animate-spin" />
-                      <span>{demoText}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${(analysisStep + 1) * 25}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                <div className="flex items-center text-blue-600 text-sm font-medium mt-4">
-                  <span>Try it now</span>
-                  <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                <div className="flex-1 bg-[#f8f5f0] rounded-lg px-4 py-2 border border-[#d4af8c]">
+                  <span className="text-sm text-[#654321] font-medieval">truthdetective.ai/investigate</span>
                 </div>
               </div>
 
-              {/* Multi-Source Verification */}
-              <div className="bg-white rounded-3xl p-8 border border-gray-200 hover:shadow-xl transition-all duration-500 group">
-                <div className="mb-6">
-                  <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Shield className="w-6 h-6 text-green-600" />
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-[#8b572a] to-[#a06535] rounded-full flex items-center justify-center border-2 border-[#654321]">
+                    <span className="text-[#f8f5f0] text-sm font-bold font-medieval">U</span>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Cross-reference sources</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">
-                    Our AI checks claims against 200+ credible sources including Reuters, AP News, and academic journals.
-                  </p>
+                  <div className="flex-1 bg-[#f8f5f0] rounded-2xl p-4 border border-[#d4af8c]">
+                    <p className="text-[#654321] font-medieval">&ldquo;The Earth is flat and NASA is hiding the truth&rdquo;</p>
+                  </div>
                 </div>
                 
-                <div className="space-y-2">
-                  {['Reuters', 'AP News', 'BBC'].map((source) => (
-                    <div key={source} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
-                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                        <Check className="w-3 h-3 text-green-600" />
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-[#8b572a] to-[#a06535] rounded-full flex items-center justify-center border-2 border-[#654321]">
+                    <Eye className="w-4 h-4 text-[#f8f5f0]" />
                       </div>
-                      <span className="text-sm text-gray-700">{source}</span>
+                  <div className="flex-1 bg-gradient-to-r from-[#f4f1e8] to-[#f0ede0] border-l-4 border-[#8b572a] rounded-2xl p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-3 h-3 bg-[#8b572a] rounded-full"></div>
+                      <span className="font-semibold text-[#654321] font-medieval">Investigation Complete - False</span>
+                      <span className="text-sm text-[#8b572a] font-medieval">Confidence: 98%</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Context Understanding */}
-              <div className="bg-white rounded-3xl p-8 border border-gray-200 hover:shadow-xl transition-all duration-500 group">
-                <div className="mb-6">
-                  <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Brain className="w-6 h-6 text-purple-600" />
+                    <p className="text-[#654321] font-medieval">Elementary, my dear Watson! This claim contradicts overwhelming scientific evidence. The Earth&rsquo;s spherical shape has been proven through multiple methods including satellite imagery, physics experiments, and astronomical observations.</p>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Write in less time</h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">
-                    Go from suspicious claim to verified fact faster. Use ClaimAI to analyze context and generate evidence-based reports.
-                  </p>
-                </div>
-                
-                <div className="bg-gray-50 rounded-2xl p-4">
-                  <div className="text-xs text-gray-500 mb-2">Analysis Result</div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span className="text-sm font-medium text-gray-900">Likely False</span>
-                  </div>
-                  <div className="text-xs text-gray-600 mt-1">Confidence: 94%</div>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
-
-      {/* Trust Indicators - Gemini Style */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <p className="text-sm text-gray-500 mb-8">Trusted by news organizations, researchers, and fact-checkers worldwide</p>
-            <div className="flex justify-center items-center space-x-12 opacity-60">
-              <span className="text-2xl font-medium text-gray-400">Reuters</span>
-              <span className="text-2xl font-medium text-gray-400">BBC</span>
-              <span className="text-2xl font-medium text-gray-400">FactCheck.org</span>
-              <span className="text-2xl font-medium text-gray-400">Snopes</span>
-              <span className="text-2xl font-medium text-gray-400">AP News</span>
+      {/* Features Section - "Athena.ai is for..." */}
+      <Section className="py-24 relative z-10 vintage-paper-section" delay={0.2}>
+        <div className="max-w-7xl mx-auto px-6">
+          {/* Investigation Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32">
+            <div>
+              <motion.h2 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6 }}
+                className="text-5xl font-bold mb-6 font-serif text-shadow-vintage better-alignment"
+              >
+                Athena.ai is for{" "}
+                <span className="bg-gradient-to-r from-[#8b572a] to-[#a06535] bg-clip-text text-transparent">
+                  Investigation
+                </span>
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-xl text-[#654321] mb-8 font-serif"
+              >
+                A digital detective in every search query
+              </motion.p>
+              
+              <motion.div 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="space-y-4"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-[#f4f1e8] rounded-lg flex items-center justify-center border border-[#d4af8c]">
+                    <Search className="w-4 h-4 text-[#8b572a]" />
+                  </div>
+                  <span className="text-[#654321] font-serif">Cross-reference claims with 200+ trusted sources</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-[#f4f1e8] rounded-lg flex items-center justify-center border border-[#d4af8c]">
+                    <Brain className="w-4 h-4 text-[#8b572a]" />
+                  </div>
+                  <span className="text-[#654321] font-serif">AI-powered evidence analysis and reasoning</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-[#f4f1e8] rounded-lg flex items-center justify-center border border-[#d4af8c]">
+                    <Shield className="w-4 h-4 text-[#8b572a]" />
+              </div>
+                  <span className="text-[#654321] font-serif">Real-time misinformation detection</span>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Gemini-Style Features Section */}
-      <section id="features" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Turn claims into insights */}
-          <div className="mb-24">
-            <div className="text-center mb-16">
-              <h2 className="text-5xl lg:text-6xl font-normal text-gray-900 mb-8 tracking-tight">
-                Turn claims into <span className="font-bold">insights</span>
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Create comprehensive fact-checking reports with our latest analysis models. Simply describe the claim you want to verify and watch ClaimAI provide evidence-based insights.
-              </p>
+              </motion.div>
             </div>
             
-            <div className="bg-gray-50 rounded-3xl p-8 lg:p-12">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div>
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-4">Real-time verification in seconds</h3>
-                  <p className="text-gray-600 mb-6 leading-relaxed">
-                    Want to understand if a breaking news story is accurate or analyze misinformation patterns? ClaimAI cross-references claims against trusted sources instantly.
-                  </p>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Check className="w-3 h-3 text-blue-600" />
-                      </div>
-                      <span className="text-sm text-gray-700">Cross-reference 200+ trusted sources</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Check className="w-3 h-3 text-blue-600" />
-                      </div>
-                      <span className="text-sm text-gray-700">Advanced context understanding</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Check className="w-3 h-3 text-blue-600" />
-                      </div>
-                      <span className="text-sm text-gray-700">Evidence-based credibility scoring</span>
-                    </div>
+            <motion.div 
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              className="vintage-paper-card rounded-3xl p-8 shadow-2xl"
+            >
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-[#654321] font-medieval">🔍 Investigation Result</h3>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-4 h-4 text-[#8b572a]" />
+                    <span className="text-sm text-[#8b572a] font-medieval">2.3s</span>
                   </div>
                 </div>
                 
-                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-                  <div className="text-xs text-gray-500 mb-4">Sample Analysis</div>
                   <div className="space-y-4">
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                      <div className="text-sm font-medium text-gray-900 mb-2">Claim:</div>
-                      <div className="text-sm text-gray-700">&quot;New study shows coffee reduces heart disease risk by 50%&quot;</div>
+                  <div className="p-4 vintage-verified-badge border-l-4 border-[#4a7c59] rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Check className="w-4 h-4 text-[#e8f5e8]" />
+                      <span className="font-medium text-[#e8f5e8] font-medieval">✓ Case Verified True</span>
                     </div>
-                    <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <AlertTriangle className="w-4 h-4 text-red-600" />
-                        <span className="text-sm font-medium text-red-900">Misleading</span>
+                    <p className="text-sm text-[#e8f5e8] font-medieval">Climate change is supported by overwhelming scientific evidence</p>
                       </div>
-                      <div className="text-xs text-red-700">Study shows 15% reduction, not 50%. Claim exaggerated.</div>
+                  
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-[#654321] font-medieval">Evidence Sources:</span>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="vintage-source-tag px-2 py-1 rounded-lg text-xs font-medieval">NASA</span>
+                      <span className="vintage-source-tag px-2 py-1 rounded-lg text-xs font-medieval">IPCC</span>
+                      <span className="vintage-source-tag px-2 py-1 rounded-lg text-xs font-medieval">Nature</span>
+                      <span className="vintage-source-tag px-2 py-1 rounded-lg text-xs font-medieval">+15 more</span>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Deep Research Equivalent */}
-          <div className="mb-24">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div className="bg-white rounded-3xl p-8 border border-gray-200 shadow-sm">
-                <div className="mb-6">
-                  <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
-                    <BarChart3 className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Comprehensive source analysis</h3>
-                  <p className="text-gray-600 text-sm">
-                    Analyze hundreds of sources and create detailed credibility reports in minutes.
-                  </p>
-                </div>
-                
-                <div className="space-y-3">
-                  {[
-                    { source: "Reuters", credibility: 95, status: "verified" },
-                    { source: "Associated Press", credibility: 92, status: "verified" },
-                    { source: "Dubious News Site", credibility: 23, status: "questionable" }
-                  ].map((item) => (
-                    <div key={item.source} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-3 h-3 rounded-full ${item.status === 'verified' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <span className="text-sm font-medium text-gray-900">{item.source}</span>
-                      </div>
-                      <span className="text-xs text-gray-600">{item.credibility}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-4xl font-normal text-gray-900 mb-6 tracking-tight">
-                  Condense hours of research with <span className="font-bold">Deep Analysis</span>
+          {/* Learning Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32">
+            <motion.div 
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              className="vintage-paper-card rounded-3xl p-8 shadow-2xl lg:order-1"
+            >
+              <div className="space-y-6">
+                <h3 className="font-semibold text-[#654321] flex items-center space-x-2 font-medieval">
+                  <BookOpen className="w-5 h-5 text-[#8b572a]" />
+                  <span>Educational Insights</span>
                 </h3>
-                <p className="text-gray-600 mb-6 leading-relaxed">
-                  Sift through hundreds of sources, analyze credibility patterns, and create comprehensive fact-checking reports in minutes. It&apos;s like having a personalized research agent for every claim.
-                </p>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-3">
-                  Learn more
-                </Button>
+                
+                <div className="space-y-4">
+                  <div className="p-4 vintage-paper-card rounded-lg">
+                    <h4 className="font-medium text-[#654321] mb-2 font-medieval">Why This Matters</h4>
+                    <p className="text-sm text-[#8b572a] font-medieval">Understanding the difference between correlation and causation is crucial for evaluating scientific claims.</p>
+                  </div>
+                  
+                  <div className="p-4 bg-gradient-to-r from-[#f4f1e8] to-[#f0ede0] rounded-lg border-l-4 border-[#8b572a]">
+                    <h4 className="font-medium text-[#654321] mb-2 font-medieval">🔍 Detective Tip</h4>
+                    <p className="text-sm text-[#8b572a] font-medieval">Always look for peer-reviewed sources and check if studies have been replicated by independent researchers.</p>
+                  </div>
+                </div>
               </div>
+            </motion.div>
+
+            <div className="lg:order-2">
+              <motion.h2 
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6 }}
+                className="text-5xl font-bold mb-6 font-serif"
+              >
+                Athena.ai is for{" "}
+                <span className="bg-gradient-to-r from-[#8b572a] to-[#a06535] bg-clip-text text-transparent">
+                  Learning
+                </span>
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-xl text-[#654321] mb-8 font-serif"
+              >
+                A tutor that teaches critical thinking
+              </motion.p>
+              
+              <motion.div 
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="space-y-4"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-[#f4f1e8] rounded-lg flex items-center justify-center border border-[#d4af8c]">
+                    <Lightbulb className="w-4 h-4 text-[#8b572a]" />
+                  </div>
+                  <span className="text-[#654321] font-serif">Learn to spot logical fallacies and bias</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-[#f4f1e8] rounded-lg flex items-center justify-center border border-[#d4af8c]">
+                    <BookOpen className="w-4 h-4 text-[#8b572a]" />
+                  </div>
+                  <span className="text-[#654321] font-serif">Understand media literacy and source evaluation</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-[#f4f1e8] rounded-lg flex items-center justify-center border border-[#d4af8c]">
+                    <Target className="w-4 h-4 text-[#8b572a]" />
+                  </div>
+                  <span className="text-[#654321] font-serif">Practice with real-world examples</span>
+                </div>
+              </motion.div>
             </div>
           </div>
 
+          {/* Justice Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <motion.h2 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6 }}
+                className="text-5xl font-bold mb-6"
+              >
+                Athena.ai is for{" "}
+                <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                  Justice
+                </span>
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-xl text-slate-600 mb-8"
+              >
+                Fighting misinformation for a better world
+              </motion.p>
+              
+              <motion.div 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="space-y-4"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Scale className="w-4 h-4 text-green-600" />
+                  </div>
+                  <span className="text-slate-700">Protect democracy with informed citizens</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Users className="w-4 h-4 text-green-600" />
+                  </div>
+                  <span className="text-slate-700">Build trust through transparency</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Zap className="w-4 h-4 text-green-600" />
+                  </div>
+                  <span className="text-slate-700">Combat harmful misinformation in real-time</span>
+                </div>
+              </motion.div>
+            </div>
+            
+            <motion.div 
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              className="vintage-paper-card rounded-3xl p-8 shadow-2xl"
+            >
+              <div className="space-y-6">
+                <h3 className="font-semibold text-[#654321] font-medieval">📊 Investigation Dashboard</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-gradient-to-br from-[#2d5016] to-[#4a7c59] rounded-lg border-2 border-[#4a7c59]">
+                    <div className="text-2xl font-bold text-[#e8f5e8] font-medieval">2.3M</div>
+                    <div className="text-sm text-[#e8f5e8] font-medieval">Cases Solved</div>
+                  </div>
+                  <div className="text-center p-4 bg-gradient-to-br from-[#8b572a] to-[#a06535] rounded-lg border-2 border-[#654321]">
+                    <div className="text-2xl font-bold text-[#f8f5f0] font-medieval">451K</div>
+                    <div className="text-sm text-[#f8f5f0] font-medieval">Mysteries Solved</div>
+                  </div>
+                  <div className="text-center p-4 bg-gradient-to-br from-[#4a5568] to-[#6b7280] rounded-lg border-2 border-[#6b7280]">
+                    <div className="text-2xl font-bold text-[#f7fafc] font-medieval">98.7%</div>
+                    <div className="text-sm text-[#f7fafc] font-medieval">Deduction Rate</div>
+                      </div>
+                  <div className="text-center p-4 bg-gradient-to-br from-[#654321] to-[#8b572a] rounded-lg border-2 border-[#654321]">
+                    <div className="text-2xl font-bold text-[#f8f5f0] font-medieval">24/7</div>
+                    <div className="text-sm text-[#f8f5f0] font-medieval">Vigilance</div>
+                    </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
-      </section>
+      </Section>
 
-      {/* Gemini-Style CTA Section */}
-      <section className="py-24 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-5xl lg:text-6xl font-normal text-gray-900 mb-8 tracking-tight">
-            Ready to fight <span className="font-bold">misinformation?</span>
-          </h2>
-          <p className="text-xl text-gray-600 mb-12 leading-relaxed max-w-2xl mx-auto">
-            Join thousands of journalists, researchers, and truth-seekers using ClaimAI to verify information instantly.
-          </p>
-          <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-4 text-lg font-medium shadow-lg">
-            <Link href={isSignedIn ? "/dashboard" : "/sign-up"}>
-              Start fact-checking now
+      {/* RSS Feed Section */}
+      <RSSFeedSection />
+
+      {/* Testimonials Section */}
+      <Section className="py-24 relative z-10" delay={0.4}>
+        <div className="max-w-6xl mx-auto px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-5xl font-bold mb-6 font-serif text-shadow-vintage">
+                Athena.ai is for{" "}
+              <span className="bg-gradient-to-r from-[#8b572a] to-[#a06535] bg-clip-text text-transparent">
+                Fellow Detectives
+              </span>
+            </h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Inspector Sarah Chen",
+                role: "Investigative Journalist",
+                content: "Athena.ai helps me uncover the truth behind breaking news stories in seconds. It's like having Watson's analytical mind at my disposal.",
+                avatar: "🔍"
+              },
+              {
+                name: "Professor Marcus Johnson",
+                role: "Academy Instructor",
+                content: "My pupils love using Athena.ai to investigate claims they encounter. It's training them in the art of deduction and critical analysis.",
+                avatar: "🎓"
+              },
+              {
+                name: "Dr. Elena Rodriguez",
+                role: "Research Detective",
+                content: "The AI's ability to scrutinize scientific claims with precision is remarkable. It's democratizing the detective work of fact-checking.",
+                avatar: "🧪"
+              }
+            ].map((testimonial, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="vintage-paper-card rounded-2xl p-6 shadow-xl"
+              >
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-[#8b572a] to-[#a06535] rounded-full flex items-center justify-center border-2 border-[#654321]">
+                    <span className="text-[#f8f5f0] text-lg">{testimonial.avatar}</span>
+                  </div>
+              <div>
+                    <h4 className="font-semibold text-[#654321] font-serif">{testimonial.name}</h4>
+                    <p className="text-sm text-[#8b572a] font-serif italic">{testimonial.role}</p>
+              </div>
+            </div>
+                <p className="text-[#654321] leading-relaxed font-serif">&ldquo;{testimonial.content}&rdquo;</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* CTA Section */}
+      <Section className="py-24 relative z-10" delay={0.6}>
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <motion.h2 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-5xl font-bold mb-6 font-serif text-shadow-vintage"
+          >
+            Begin your{" "}
+            <span className="bg-gradient-to-r from-[#8b572a] to-[#a06535] bg-clip-text text-transparent">
+              investigation
+            </span>
+          </motion.h2>
+          
+          <motion.p 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-xl text-[#654321] mb-12 font-serif"
+          >
+            Join thousands of fellow detectives using AI to uncover truth and solve mysteries
+          </motion.p>
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Button asChild size="lg" className="vintage-paper-button text-[#654321] shadow-xl text-lg px-12 py-6 font-medieval">
+              <Link href={isSignedIn ? "/fact-check" : "/sign-up"}>
+                {isSignedIn ? "Start Investigating" : "Get Early Access"}
             </Link>
           </Button>
+          </motion.div>
         </div>
-      </section>
+      </Section>
 
-      {/* Gemini-Style Footer */}
-      <footer className="bg-white border-t border-gray-100 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-            <div className="flex items-center space-x-4 mb-8 md:mb-0">
-              <div className="w-12 h-12 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200 logo-container">
-                <Image 
-                  src="/clean-logo.svg" 
-                  alt="ClaimAI Logo" 
-                  width={40} 
-                  height={40}
-                  className="w-10 h-10 object-contain logo-image"
-                />
-              </div>
-              <span className="text-xl font-semibold text-gray-900">ClaimAI</span>
-            </div>
-            
-            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-8">
-              <Link href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                Privacy
-              </Link>
-              <Link href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                Terms
-              </Link>
-              <Link href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                About
-              </Link>
-              <Link href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                Contact
-              </Link>
-            </div>
-          </div>
+      {/* Footer with Enhanced Vintage Gradient */}
+      <footer className="relative z-10 mt-24">
+        {/* Multi-layered Detective-style gradient background */}
+        <div className="h-96 relative overflow-hidden">
+          {/* Base gradient layers */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#8b572a] via-[#a06535] to-[#f4f1e8]"></div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#654321] via-transparent to-[#8b572a] opacity-70"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#654321] via-[#8b572a] to-transparent opacity-60"></div>
           
-          <div className="mt-8 pt-8 border-t border-gray-100 text-center">
-            <p className="text-sm text-gray-500">
-              2024 ClaimAI. Empowering truth in the age of misinformation.
-            </p>
+          {/* Vintage pattern overlays */}
+          <div className="absolute inset-0 detective-pattern opacity-20"></div>
+          <div className="absolute inset-0 magnifying-glass-pattern opacity-15"></div>
+          <div className="absolute inset-0 sketch-texture"></div>
+          
+          {/* Animated gradient orbs */}
+          <div className="absolute top-20 left-20 w-40 h-40 bg-gradient-to-r from-[#8b572a] to-[#a06535] rounded-full blur-3xl opacity-30 animate-pulse"></div>
+          <div className="absolute bottom-20 right-20 w-60 h-60 bg-gradient-to-r from-[#654321] to-[#8b572a] rounded-full blur-3xl opacity-20 animate-pulse" style={{animationDelay: '1s'}}></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-r from-[#a06535] to-[#d4af8c] rounded-full blur-3xl opacity-10 animate-pulse" style={{animationDelay: '2s'}}></div>
+          
+          <div className="relative z-10 h-full flex items-center justify-center">
+            <div className="text-center text-[#f8f5f0] drop-shadow-lg">
+              <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+                className="space-y-6"
+              >
+                <motion.h3 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  className="text-5xl font-bold font-serif drop-shadow-2xl"
+                >
+                  Athena.ai
+                </motion.h3>
+                <motion.p 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                  className="text-xl opacity-90 max-w-lg mx-auto font-serif drop-shadow-lg"
+                >
+                  Bringing clarity to the age of information
+                </motion.p>
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.6 }}
+                  className="flex justify-center space-x-8 text-sm font-serif"
+                >
+                  <Link href="#" className="hover:text-[#f4f1e8] transition-colors hover:scale-105 transform duration-200">Privacy</Link>
+                  <Link href="#" className="hover:text-[#f4f1e8] transition-colors hover:scale-105 transform duration-200">Terms</Link>
+                  <Link href="#" className="hover:text-[#f4f1e8] transition-colors hover:scale-105 transform duration-200">About</Link>
+                  <Link href="#" className="hover:text-[#f4f1e8] transition-colors hover:scale-105 transform duration-200">Contact</Link>
+                </motion.div>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 0.75 }}
+                  transition={{ duration: 0.8, delay: 0.8 }}
+                  className="text-sm font-serif"
+                >
+                  © 2025 Athena.ai. Powered by AI, guided by truth.
+                </motion.p>
+              </motion.div>
+            </div>
           </div>
         </div>
       </footer>

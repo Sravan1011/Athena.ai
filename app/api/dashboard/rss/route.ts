@@ -112,11 +112,22 @@ interface ProcessedClaim {
 //   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 // );
 
+// Simple cache to prevent repeated failed requests
+const FAILED_FEEDS_CACHE = new Map<string, number>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 // Parse RSS feed with improved error handling and empty claim filtering
 async function parseRSSFeed(url: string): Promise<RSSItem[]> {
+  // Check if this feed recently failed
+  const lastFailed = FAILED_FEEDS_CACHE.get(url);
+  if (lastFailed && Date.now() - lastFailed < CACHE_DURATION) {
+    console.log(`Skipping ${url} - recently failed`);
+    return [];
+  }
+
   try {
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 6000); // Reduced to 6 seconds
     
     const response = await fetch(url, {
       headers: {
@@ -124,6 +135,8 @@ async function parseRSSFeed(url: string): Promise<RSSItem[]> {
       },
       signal: controller.signal
     });
+    
+    clearTimeout(timeoutId); // Clear timeout on successful response
     
     if (!response.ok) {
       console.warn(`RSS feed ${url} returned ${response.status}, skipping...`);
@@ -175,8 +188,17 @@ async function parseRSSFeed(url: string): Promise<RSSItem[]> {
     
     console.log(`Parsed ${items.length} valid items from ${url}`);
     return items;
-  } catch (error) {
-    console.error(`Error parsing RSS feed ${url}:`, error);
+  } catch (error: any) {
+    // Cache this failed feed to avoid repeated attempts
+    FAILED_FEEDS_CACHE.set(url, Date.now());
+    
+    if (error.name === 'AbortError') {
+      console.warn(`RSS feed ${url} timed out after 6 seconds, skipping...`);
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      console.warn(`RSS feed ${url} is unreachable, skipping...`);
+    } else {
+      console.warn(`RSS feed ${url} failed:`, error.message || error);
+    }
     return [];
   }
 }
@@ -199,6 +221,25 @@ function cleanText(text: string): string {
     .replace(/&#39;/g, "'")
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// Extract image URL from description
+function extractImageFromDescription(description: string): string | null {
+  if (!description) return null;
+  
+  // Try to extract image from HTML content
+  const imgRegex = /<img[^>]+src="([^">]+)"/i;
+  const match = description.match(imgRegex);
+  
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // Try to find image URLs in text
+  const urlRegex = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp))/i;
+  const urlMatch = description.match(urlRegex);
+  
+  return urlMatch ? urlMatch[1] : null;
 }
 
 // Categorize claim based on content
@@ -392,20 +433,32 @@ export async function GET() {
     console.log('Fetching fresh RSS data...');
     const allItems: RSSItem[] = [];
     
-    // Fetch from all sources in parallel with better error handling
-    const fetchPromises = RSS_SOURCES.map(async (source) => {
-      try {
-        const items = await parseRSSFeed(source.url);
-        console.log(`Successfully fetched ${items.length} items from ${source.name}`);
-        return items;
-      } catch (error) {
-        console.error(`Failed to fetch from ${source.name}:`, error);
-        return [];
-      }
-    });
+    // Only use the most reliable sources to reduce errors
+    const reliableSources = RSS_SOURCES.slice(0, 4); // Only use first 4 sources
     
-    const results = await Promise.all(fetchPromises);
-    results.forEach(items => allItems.push(...items));
+    // Process in smaller batches to reduce load
+    const batchSize = 2;
+    for (let i = 0; i < reliableSources.length; i += batchSize) {
+      const batch = reliableSources.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (source) => {
+        try {
+          const items = await parseRSSFeed(source.url);
+          console.log(`Successfully fetched ${items.length} items from ${source.name}`);
+          return items;
+        } catch (error: any) {
+          console.warn(`Failed to fetch from ${source.name}:`, error.message || error);
+          return [];
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(items => allItems.push(...items));
+      
+      // Small delay between batches to be respectful to servers
+      if (i + batchSize < reliableSources.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
     
     console.log(`Total items fetched: ${allItems.length}`);
     
@@ -415,8 +468,20 @@ export async function GET() {
     // Calculate statistics
     const stats = calculateStats(claims);
 
+    // Also return articles for RSS feed component
+    const articles = allItems.slice(0, 10).map(item => ({
+      title: item.title,
+      description: item.description,
+      link: item.link,
+      pubDate: item.pubDate,
+      source: item.source,
+      imageUrl: extractImageFromDescription(item.description)
+    }));
+
     return NextResponse.json({
+      success: true,
       claims,
+      articles,
       stats,
       lastUpdate: new Date().toISOString()
     });
@@ -446,19 +511,32 @@ export async function POST() {
     console.log('Refreshing RSS feed...');
     const allItems: RSSItem[] = [];
     
-    const fetchPromises = RSS_SOURCES.map(async (source) => {
-      try {
-        const items = await parseRSSFeed(source.url);
-        console.log(`Refreshed ${items.length} items from ${source.name}`);
-        return items;
-      } catch (error) {
-        console.error(`Failed to refresh from ${source.name}:`, error);
-        return [];
-      }
-    });
+    // Only use reliable sources for refresh as well
+    const reliableSources = RSS_SOURCES.slice(0, 4);
     
-    const results = await Promise.all(fetchPromises);
-    results.forEach(items => allItems.push(...items));
+    // Process in smaller batches
+    const batchSize = 2;
+    for (let i = 0; i < reliableSources.length; i += batchSize) {
+      const batch = reliableSources.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (source) => {
+        try {
+          const items = await parseRSSFeed(source.url);
+          console.log(`Refreshed ${items.length} items from ${source.name}`);
+          return items;
+        } catch (error: any) {
+          console.warn(`Failed to refresh from ${source.name}:`, error.message || error);
+          return [];
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(items => allItems.push(...items));
+      
+      // Small delay between batches
+      if (i + batchSize < reliableSources.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
     
     const claims = processRSSItems(allItems);
     const stats = calculateStats(claims);
