@@ -16,7 +16,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Load theme from localStorage on mount
-    const savedTheme = localStorage.getItem('claimai-theme') as Theme;
+    const savedTheme = localStorage.getItem('athena-theme') as Theme;
     if (savedTheme && ['light', 'dark', 'contrast'].includes(savedTheme)) {
       setTheme(savedTheme);
     }
@@ -24,7 +24,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Save theme to localStorage and apply to document
-    localStorage.setItem('claimai-theme', theme);
+    localStorage.setItem('athena-theme', theme);
     document.documentElement.setAttribute('data-theme', theme);
     
     // Apply theme class to html element for Tailwind dark mode

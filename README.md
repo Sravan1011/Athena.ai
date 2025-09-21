@@ -1,4 +1,4 @@
-# ClaimeAI - AI Fact Checking System
+# Athena.ai - AI Fact Checking System
 
 A comprehensive AI-powered fact-checking system built with Next.js, Gemini AI, and Tavily search. This system extracts factual claims from text and verifies them against real-world evidence using advanced AI techniques.
 

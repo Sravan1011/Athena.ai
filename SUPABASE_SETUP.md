@@ -1,4 +1,4 @@
-# 🚀 Supabase Setup Guide for ClaimAI
+# 🚀 Supabase Setup Guide for Athena.ai
 
 ## ✅ **Completed Steps:**
 - ✅ Installed @supabase/supabase-js package
@@ -141,4 +141,4 @@ app/api/
 
 ## 🚀 **Ready to Go!**
 
-Once you complete steps 4-6, your ClaimAI will have enterprise-level chat history persistence just like ChatGPT, Claude, and Gemini! 🎉
+Once you complete steps 4-6, your Athena.ai will have enterprise-level chat history persistence just like ChatGPT, Claude, and Gemini! 🎉
