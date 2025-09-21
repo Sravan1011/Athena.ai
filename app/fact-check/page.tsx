@@ -35,7 +35,6 @@ import { cn, formatConfidence, getVerdictIcon, formatProcessingTime } from "@/li
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import Link from "next/link"
-import Image from "next/image"
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { Conversation, Message } from '@/lib/supabase'
 

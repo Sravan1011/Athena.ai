@@ -450,8 +450,9 @@ export async function GET() {
           const items = await parseRSSFeed(source.url);
           console.log(`Successfully fetched ${items.length} items from ${source.name}`);
           return items;
-        } catch (error: any) {
-          console.warn(`Failed to fetch from ${source.name}:`, error.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.warn(`Failed to fetch from ${source.name}:`, errorMessage);
           return [];
         }
       });
@@ -528,8 +529,9 @@ export async function POST() {
           const items = await parseRSSFeed(source.url);
           console.log(`Refreshed ${items.length} items from ${source.name}`);
           return items;
-        } catch (error: any) {
-          console.warn(`Failed to refresh from ${source.name}:`, error.message || error);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.warn(`Failed to refresh from ${source.name}:`, errorMessage);
           return [];
         }
       });

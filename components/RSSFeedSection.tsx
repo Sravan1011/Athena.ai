@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
 
 interface RSSArticle {
   title: string;
@@ -165,12 +166,15 @@ export function RSSFeedSection() {
             >
               {/* Article Image */}
               <div className="relative h-48 overflow-hidden">
-                <img
-                  src={article.imageUrl}
+                <Image
+                  src={article.imageUrl || '/alt-placeholder.jpg'}
                   alt={article.title}
-                  className="w-full h-full object-cover sepia-filter hover:sepia-0 transition-all duration-500"
+                  fill
+                  className="object-cover sepia-filter hover:sepia-0 transition-all duration-500"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/alt-placeholder.jpg';
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/alt-placeholder.jpg';
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#654321]/20 to-transparent"></div>
@@ -219,7 +223,7 @@ export function RSSFeedSection() {
         >
           <blockquote className="text-xl font-serif italic text-[#654321] max-w-2xl mx-auto">
             &ldquo;The game is afoot! Every piece of information brings us closer to the truth.&rdquo;
-            <footer className="text-[#8b572a] mt-2 font-medium">— Detective's Creed</footer>
+            <footer className="text-[#8b572a] mt-2 font-medium">— Detective&apos;s Creed</footer>
           </blockquote>
         </motion.div>
       </div>
