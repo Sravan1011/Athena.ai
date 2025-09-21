@@ -32,10 +32,10 @@ const uncialAntiqua = Uncial_Antiqua({
 });
 
 export const metadata: Metadata = {
-  title: "ClaimAI - AI-Powered Fact Checking",
+  title: "Athena.ai - AI-Powered Fact Checking",
   description: "Verify claims instantly with our advanced AI-powered fact-checking platform. Get comprehensive source analysis and evidence-based results.",
   keywords: "AI, fact checking, verification, misinformation, truth, claims",
-  authors: [{ name: "ClaimAI Team" }],
+  authors: [{ name: "Athena.ai Team" }],
   icons: {
     icon: "/clean-logo.svg",
     shortcut: "/clean-logo.svg",

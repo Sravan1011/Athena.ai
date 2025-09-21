@@ -487,19 +487,19 @@ export default function Home() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-gradient-to-br from-[#2d5016] to-[#4a7c59] rounded-lg border-2 border-[#4a7c59]">
-                    <div className="text-2xl font-bold text-[#e8f5e8] font-medieval">2.3M</div>
+                    <div className="text-lg font-bold text-[#e8f5e8] font-medieval">Not Applicable</div>
                     <div className="text-sm text-[#e8f5e8] font-medieval">Cases Solved</div>
                   </div>
                   <div className="text-center p-4 bg-gradient-to-br from-[#8b572a] to-[#a06535] rounded-lg border-2 border-[#654321]">
-                    <div className="text-2xl font-bold text-[#f8f5f0] font-medieval">451K</div>
+                    <div className="text-lg font-bold text-[#f8f5f0] font-medieval">Not Applicable</div>
                     <div className="text-sm text-[#f8f5f0] font-medieval">Mysteries Solved</div>
                   </div>
                   <div className="text-center p-4 bg-gradient-to-br from-[#4a5568] to-[#6b7280] rounded-lg border-2 border-[#6b7280]">
-                    <div className="text-2xl font-bold text-[#f7fafc] font-medieval">98.7%</div>
+                    <div className="text-lg font-bold text-[#f7fafc] font-medieval">Not Applicable</div>
                     <div className="text-sm text-[#f7fafc] font-medieval">Deduction Rate</div>
                       </div>
                   <div className="text-center p-4 bg-gradient-to-br from-[#654321] to-[#8b572a] rounded-lg border-2 border-[#654321]">
-                    <div className="text-2xl font-bold text-[#f8f5f0] font-medieval">24/7</div>
+                    <div className="text-lg font-bold text-[#f8f5f0] font-medieval">Not Applicable</div>
                     <div className="text-sm text-[#f8f5f0] font-medieval">Vigilance</div>
                     </div>
                 </div>

@@ -1110,9 +1110,27 @@ export default function FactCheckPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen aged-paper relative overflow-hidden flex">
+      {/* Vintage paper overlay for entire page */}
+      <div className="fixed inset-0 vintage-paper-overlay pointer-events-none z-0"></div>
+      
+      {/* Animated Background Pattern */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 vintage-texture opacity-15"></div>
+        <div className="absolute inset-0 sherlock-background opacity-20"></div>
+        <div className="absolute inset-0 magnifying-glass-pattern opacity-10"></div>
+        <div className="absolute inset-0 detective-pattern opacity-8"></div>
+        <div className="absolute inset-0 pipe-pattern opacity-5"></div>
+        <div className="absolute inset-0 vintage-book-pattern opacity-12"></div>
+        <div 
+          className="absolute inset-0 opacity-20"
+          style={{
+            background: `radial-gradient(1200px circle at 50% 50%, rgba(139, 87, 42, 0.02), transparent 70%)`
+          }}
+        />
+      </div>
       {/* Sidebar */}
-      <div className={`perplexity-sidebar transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'w-12' : 'w-64'} flex-shrink-0 overflow-visible relative group`}>
+      <div className={`vintage-paper-nav relative z-10 transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'w-12' : 'w-64'} flex-shrink-0 overflow-visible relative group border-r border-[#d4af8c]`}>
         {/* Pull-out indicator when collapsed */}
         {sidebarCollapsed && (
           <>
@@ -1146,14 +1164,14 @@ export default function FactCheckPage() {
         
         <div className="h-full flex flex-col">
           {/* Sidebar Header */}
-          <div className="p-3 border-b border-border">
+          <div className="p-3 border-b border-[#d4af8c]">
             <div className="flex items-center justify-between">
               <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer">
-                <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-md flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">C</span>
+                <div className="w-8 h-8 sherlock-gradient rounded-lg flex items-center justify-center shadow-lg border-2 border-[#654321]">
+                  <Shield className="w-4 h-4 text-[#f8f5f0]" />
                 </div>
                 <div className={`overflow-hidden transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                  <span className="text-sm font-semibold text-foreground whitespace-nowrap">ClaimAI</span>
+                  <span className="text-lg font-bold bg-gradient-to-r from-[#654321] to-[#8b572a] bg-clip-text text-transparent font-serif whitespace-nowrap">Athena.ai</span>
                 </div>
               </Link>
               <Button
@@ -1173,10 +1191,10 @@ export default function FactCheckPage() {
           <div className={`transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'h-0 opacity-0 p-0' : 'h-auto opacity-100 p-3'} overflow-hidden`}>
             <Button
               onClick={startNewChat}
-              className="w-full bg-primary text-primary-foreground hover:opacity-90 flex items-center justify-center gap-1.5 h-8 text-xs rounded-md transition-all duration-200"
+              className="w-full vintage-paper-button text-[#654321] font-serif hover:opacity-90 flex items-center justify-center gap-1.5 h-8 text-xs rounded-md transition-all duration-200"
             >
               <Plus className="h-3 w-3" />
-              New
+              New Investigation
             </Button>
           </div>
 
@@ -1258,28 +1276,21 @@ export default function FactCheckPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-screen">
-        {/* Header with Logo */}
-        <header className="bg-background border-b border-border px-6 py-4 flex-shrink-0">
+      <div className="flex-1 flex flex-col h-screen relative z-10">
+        {/* Header with Vintage Styling */}
+        <header className="vintage-paper-nav border-b border-[#d4af8c] px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 flex items-center justify-center bg-white rounded-xl shadow-lg border-2 border-gray-200 logo-container">
-                <Image 
-                  src="/clean-logo.svg" 
-                  alt="ClaimAI Logo" 
-                  width={40} 
-                  height={40}
-                  className="w-10 h-10 object-contain logo-image"
-                  priority
-                />
+              <div className="w-12 h-12 sherlock-gradient rounded-lg flex items-center justify-center shadow-lg border-2 border-[#654321]">
+                <Shield className="w-8 h-8 text-[#f8f5f0]" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground tracking-tight">ClaimAI</h1>
-                <p className="text-sm text-muted-foreground">AI-Powered Fact Checking</p>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-[#654321] to-[#8b572a] bg-clip-text text-transparent font-serif tracking-tight">Athena.ai</h1>
+                <p className="text-sm text-[#8b572a] font-serif">AI-Powered Fact Checking</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <Button asChild variant="outline" size="sm">
+              <Button asChild className="vintage-paper-button text-[#654321] font-serif" size="sm">
                 <Link href="/" className="flex items-center">
                   <HomeIcon className="mr-2 h-4 w-4" />
                   Home
@@ -1294,14 +1305,14 @@ export default function FactCheckPage() {
           {/* Empty State */}
           {chatHistory.length === 0 && !isLoading && (
             <div className="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center px-4">
-              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-primary-foreground" />
+              <div className="w-16 h-16 sherlock-gradient rounded-lg flex items-center justify-center mb-6 shadow-lg border-2 border-[#654321]">
+                <Shield className="h-8 w-8 text-[#f8f5f0]" />
               </div>
-              <h1 className="text-2xl font-bold text-foreground mb-3">
-                Fact Check Any Claim
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-[#654321] to-[#8b572a] bg-clip-text text-transparent mb-4 font-serif">
+                Investigate Any Claim
               </h1>
-              <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
-                Ask questions, verify claims, or analyze statements. I&apos;ll help you separate fact from fiction using AI-powered analysis.
+              <p className="text-[#8b572a] max-w-md text-lg leading-relaxed font-serif">
+                Ask questions, verify claims, or analyze statements. I&apos;ll help you separate fact from fiction using AI-powered deduction.
               </p>
               
               {!isSignedIn && (
@@ -1347,15 +1358,15 @@ export default function FactCheckPage() {
                 {/* User Message */}
                 {message.type === 'user' && (
                   <div className="flex items-start space-x-3">
-                    <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-primary-foreground text-xs font-medium">U</span>
+                    <div className="w-8 h-8 sherlock-gradient rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 shadow-lg border-2 border-[#654321]">
+                      <span className="text-[#f8f5f0] text-xs font-bold font-serif">You</span>
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 vintage-paper-card p-4 rounded-lg">
                       <div 
-                        className="text-foreground text-sm leading-relaxed"
+                        className="text-[#654321] text-sm leading-relaxed font-serif"
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
                       />
-                      <p className="text-muted-foreground text-xs mt-1">{message.timestamp.toLocaleTimeString()}</p>
+                      <p className="text-[#8b572a] text-xs mt-2 font-serif">{message.timestamp.toLocaleTimeString()}</p>
                     </div>
                   </div>
                 )}
@@ -1363,20 +1374,20 @@ export default function FactCheckPage() {
                 {/* Assistant Message */}
                 {message.type === 'assistant' && (
                   <div className="flex items-start space-x-3">
-                    <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Shield className="h-3 w-3 text-white" />
+                    <div className="w-8 h-8 sherlock-gradient rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 shadow-lg border-2 border-[#654321]">
+                      <Shield className="h-4 w-4 text-[#f8f5f0]" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 vintage-paper-card p-4 rounded-lg">
                       <div 
-                        className="text-foreground text-sm mb-2"
+                        className="text-[#654321] text-sm mb-2 font-serif leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
                       />
                       {message.result && (
-                        <div className="perplexity-chat p-4 mt-3">
+                        <div className="vintage-paper-card p-4 mt-3 border-l-4 border-[#8b572a]">
                           <FactCheckResult result={message.result} />
                         </div>
                       )}
-                      <p className="text-muted-foreground text-xs mt-2">{message.timestamp.toLocaleTimeString()}</p>
+                      <p className="text-[#8b572a] text-xs mt-2 font-serif">Athena.ai • {message.timestamp.toLocaleTimeString()}</p>
                     </div>
                   </div>
                 )}
@@ -1386,18 +1397,22 @@ export default function FactCheckPage() {
             {/* Loading State */}
             {isLoading && (
               <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Shield className="h-3 w-3 text-white" />
+                <div className="w-8 h-8 sherlock-gradient rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 shadow-lg border-2 border-[#654321]">
+                  <Loader2 className="h-4 w-4 text-[#f8f5f0] animate-spin" />
                 </div>
                 <div className="flex-1">
-                  <div className="perplexity-message p-3">
+                  <div className="vintage-paper-card p-4 rounded-lg">
                     <div className="flex items-center space-x-2">
-                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                      <span className="text-foreground text-sm">Analyzing claim...</span>
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-[#8b572a] rounded-full animate-pulse"></div>
+                        <div className="w-2 h-2 bg-[#8b572a] rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                        <div className="w-2 h-2 bg-[#8b572a] rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                      </div>
+                      <span className="text-[#654321] text-sm font-serif">Athena.ai is investigating...</span>
                     </div>
                     <div className="mt-2 space-y-1">
-                      <div className="h-1.5 bg-muted rounded animate-pulse"></div>
-                      <div className="h-1.5 bg-muted rounded animate-pulse w-3/4"></div>
+                      <div className="h-2 bg-[#8b572a]/20 rounded animate-pulse"></div>
+                      <div className="h-2 bg-[#8b572a]/20 rounded animate-pulse w-3/4"></div>
                     </div>
                   </div>
                 </div>
@@ -1409,7 +1424,7 @@ export default function FactCheckPage() {
         </div>
 
         {/* Search Input - Collapsible */}
-        <div className="border-t border-border bg-background">
+        <div className="border-t border-[#d4af8c] vintage-paper-nav relative z-10">
           {/* Collapse/Expand Button */}
           <div className="flex justify-center py-2">
             <button
@@ -1454,8 +1469,8 @@ export default function FactCheckPage() {
                         }
                       }
                     }}
-                    placeholder="Ask anything or fact-check a claim..."
-                    className="perplexity-search w-full px-4 py-3 pr-20 resize-none text-sm placeholder:text-muted-foreground-foreground focus:outline-none min-h-[44px] max-h-32"
+                    placeholder="Ask anything or investigate a claim..."
+                    className="w-full px-4 py-3 pr-20 resize-none text-sm bg-[#f8f5f0] border border-[#d4af8c] rounded-lg text-[#654321] placeholder-[#8b572a] font-serif focus:outline-none focus:border-[#8b572a] focus:ring-2 focus:ring-[#8b572a]/20 min-h-[44px] max-h-32"
                     disabled={isLoading || isUploading}
                     rows={1}
                   />
@@ -1468,33 +1483,33 @@ export default function FactCheckPage() {
                     disabled={isLoading || isUploading || !isSignedIn}
                   />
                 </div>
-                <div className="absolute right-2 bottom-2 flex items-center space-x-1">
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
                   <div className="relative group">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="h-7 w-7 p-0 bg-muted hover:bg-muted-hover rounded-md border border-border flex items-center justify-center transition-colors group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="h-8 w-8 p-0 bg-[#f8f5f0] hover:bg-[#f4f1e8] rounded-lg border border-[#d4af8c] flex items-center justify-center transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={isLoading || isUploading || !isSignedIn}
                       title={!isSignedIn ? "Please sign in to upload documents" : "Upload document"}
                     >
                       {isUploading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin text-[#8b572a]" />
                       ) : (
-                        <Upload className="h-3.5 w-3.5" />
+                        <Upload className="h-4 w-4 text-[#8b572a]" />
                       )}
                     </button>
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 vintage-paper-card text-[#654321] text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none font-serif shadow-lg">
                       Upload PDF/DOCX
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800"></div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-[#f8f5f0]"></div>
                     </div>
                   </div>
                   <button
                     type="button"
-                    className="h-7 w-7 p-0 bg-muted hover:bg-muted-hover rounded-md border border-border flex items-center justify-center transition-colors"
+                    className="h-8 w-8 p-0 bg-[#d4af8c] hover:bg-[#c4a484] rounded-lg border-2 border-[#8b572a] flex items-center justify-center transition-colors shadow-md"
                     disabled={isLoading || isUploading}
                     title="Keyboard shortcut: Cmd+Enter"
                   >
-                    <span className="text-xs text-muted-foreground font-mono">⌘</span>
+                    <span className="text-xs text-[#654321] font-mono font-bold">⌘</span>
                   </button>
                   <button
                     type="button"
@@ -1504,7 +1519,7 @@ export default function FactCheckPage() {
                       }
                     }}
                     disabled={isLoading || isUploading || !currentInput.trim()}
-                    className="bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 h-7 w-7 p-0 rounded-md flex items-center justify-center transition-all"
+                    className="h-8 w-8 p-0 bg-[#8b572a] hover:bg-[#654321] text-[#f8f5f0] rounded-lg border border-[#d4af8c] flex items-center justify-center transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
